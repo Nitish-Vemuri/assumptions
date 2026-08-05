@@ -52,41 +52,6 @@ header p {
     letter-spacing: -0.016em;
 }
 
-/* Mode Toggle */
-.mode-toggle {
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    padding: 24px 32px;
-    background: #fbfbfd;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-.mode-btn {
-    padding: 10px 24px;
-    font-size: 15px;
-    font-weight: 500;
-    background: #ffffff;
-    border: 1px solid #d2d2d7;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    color: #1d1d1f;
-    letter-spacing: -0.01em;
-}
-
-.mode-btn:hover {
-    border-color: #86868b;
-    background: #f5f5f7;
-}
-
-.mode-btn.active {
-    background: #0071e3;
-    border-color: #0071e3;
-    color: #ffffff;
-    box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25);
-}
-
 /* Main Content */
 .main-content {
     display: grid;
@@ -102,11 +67,19 @@ header p {
 }
 
 .canvas-section h3 {
-    font-size: 21px;
-    font-weight: 600;
-    margin-bottom: 16px;
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 8px;
     color: #1d1d1f;
-    letter-spacing: -0.016em;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+
+.canvas-description {
+    font-size: 13px;
+    color: #6e6e73;
+    margin-bottom: 16px;
+    line-height: 1.4;
 }
 
 .canvas-wrapper {
@@ -168,14 +141,19 @@ header p {
 }
 
 .panel h3 {
-    font-size: 17px;
+    font-size: 13px;
     font-weight: 600;
-    margin-bottom: 16px;
-    color: #1d1d1f;
-    letter-spacing: -0.022em;
+    margin-bottom: 12px;
+    color: #6e6e73;
+    letter-spacing: 0.5px;
     text-transform: uppercase;
+}
+
+.panel-description {
     font-size: 13px;
     color: #6e6e73;
+    margin-bottom: 16px;
+    line-height: 1.4;
 }
 
 /* Assumptions */

@@ -10,110 +10,119 @@
     <div class="container">
         <header>
             <h1>Assumption Explorer</h1>
-            <h2>Block Sliding Down a Ramp</h2>
+            <p>Block Sliding Down a Ramp</p>
         </header>
 
-        <div class="mode-toggle">
-            <button id="textbookMode" class="mode-btn active">📚 Textbook Mode</button>
-            <button id="realityMode" class="mode-btn">🌍 Reality Mode</button>
-        </div>
-
         <div class="main-content">
-            <!-- Visualization Area -->
-            <div class="visualization-section">
-                <div class="canvas-container">
-                    <div class="canvas-wrapper">
-                        <h3>Simplified Model</h3>
-                        <canvas id="idealCanvas" width="400" height="400"></canvas>
-                        <div class="readings">
-                            <div class="reading">
-                                <span class="label">Acceleration:</span>
-                                <span id="idealAccel" class="value">0.00 m/s²</span>
-                            </div>
-                            <div class="reading">
-                                <span class="label">Velocity:</span>
-                                <span id="idealVel" class="value">0.00 m/s</span>
-                            </div>
-                            <div class="reading">
-                                <span class="label">Time:</span>
-                                <span id="idealTime" class="value">0.00 s</span>
-                            </div>
+            <!-- Textbook Model Canvas -->
+            <div class="canvas-section">
+                <h3>📚 TEXTBOOK MODEL</h3>
+                <p class="canvas-description">All assumptions active (frictionless, point mass)</p>
+                <div class="canvas-wrapper">
+                    <canvas id="idealCanvas" width="400" height="400"></canvas>
+                    <div class="readings">
+                        <div class="reading-item">
+                            <span class="reading-label">Acceleration:</span>
+                            <span id="idealAccel" class="reading-value">0.00 m/s²</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Velocity:</span>
+                            <span id="idealVel" class="reading-value">0.00 m/s</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Time:</span>
+                            <span id="idealTime" class="reading-value">0.00 s</span>
                         </div>
                     </div>
-                    
-                    <div class="canvas-wrapper" id="realCanvasWrapper" style="display: none;">
-                        <h3>Complete Model</h3>
-                        <canvas id="realCanvas" width="400" height="400"></canvas>
-                        <div class="readings">
-                            <div class="reading">
-                                <span class="label">Acceleration:</span>
-                                <span id="realAccel" class="value">0.00 m/s²</span>
-                            </div>
-                            <div class="reading">
-                                <span class="label">Velocity:</span>
-                                <span id="realVel" class="value">0.00 m/s</span>
-                            </div>
-                            <div class="reading">
-                                <span class="label">Time:</span>
-                                <span id="realTime" class="value">0.00 s</span>
-                            </div>
+                </div>
+            </div>
+            
+            <!-- Real World Canvas -->
+            <div class="canvas-section">
+                <h3>🌍 REAL WORLD</h3>
+                <p class="canvas-description">Toggle assumptions to see their effects →</p>
+                <div class="canvas-wrapper">
+                    <canvas id="realCanvas" width="400" height="400"></canvas>
+                    <div class="readings">
+                        <div class="reading-item">
+                            <span class="reading-label">Acceleration:</span>
+                            <span id="realAccel" class="reading-value">0.00 m/s²</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Velocity:</span>
+                            <span id="realVel" class="reading-value">0.00 m/s</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Time:</span>
+                            <span id="realTime" class="reading-value">0.00 s</span>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Controls Section -->
-            <div class="controls-section">
+            <!-- Sidebar Controls -->
+            <div class="sidebar">
                 <!-- Assumptions Panel -->
-                <div class="panel assumptions-panel">
-                    <h3>Modeling Assumptions</h3>
+                <div class="panel">
+                    <h3>Toggle Assumptions</h3>
+                    <p class="panel-description">Uncheck to see real-world effects →</p>
+                    
                     <div class="assumption-item">
-                        <label class="checkbox-label">
+                        <label class="assumption-checkbox">
                             <input type="checkbox" id="assumptionFrictionless" checked>
-                            <span>Frictionless surface (μ = 0)</span>
+                            <div class="assumption-label">
+                                <strong>Frictionless surface (μ = 0)</strong>
+                                <small>Ignores energy loss from surface interaction</small>
+                            </div>
                         </label>
-                        <div class="assumption-info" id="infoFrictionless">
-                            <small>Ignores energy loss from surface interaction</small>
-                        </div>
                     </div>
                     
                     <div class="assumption-item">
-                        <label class="checkbox-label">
+                        <label class="assumption-checkbox">
                             <input type="checkbox" id="assumptionPointMass" checked>
-                            <span>Point mass (no rotation)</span>
+                            <div class="assumption-label">
+                                <strong>Point mass (no rotation)</strong>
+                                <small>Block slides without rolling; all energy goes to translation</small>
+                            </div>
                         </label>
-                        <div class="assumption-info" id="infoPointMass">
-                            <small>Block slides without rolling; all energy goes to translation</small>
-                        </div>
                     </div>
                     
                     <div class="assumption-item">
-                        <label class="checkbox-label">
+                        <label class="assumption-checkbox">
                             <input type="checkbox" id="assumptionNoAir" checked>
-                            <span>No air resistance</span>
+                            <div class="assumption-label">
+                                <strong>No air resistance</strong>
+                                <small>Ignores drag force from air</small>
+                            </div>
                         </label>
-                        <div class="assumption-info" id="infoNoAir">
-                            <small>Ignores drag force from air</small>
-                        </div>
                     </div>
                 </div>
 
                 <!-- Parameters Panel -->
-                <div class="panel parameters-panel">
+                <div class="panel">
                     <h3>System Parameters</h3>
                     
-                    <div class="parameter-control">
-                        <label for="angleSlider">Ramp Angle: <span id="angleValue">30</span>°</label>
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Ramp Angle</span>
+                            <span class="parameter-value"><span id="angleValue">30</span>°</span>
+                        </div>
                         <input type="range" id="angleSlider" min="10" max="60" value="30" step="5">
                     </div>
                     
-                    <div class="parameter-control">
-                        <label for="massSlider">Block Mass: <span id="massValue">5.0</span> kg</label>
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Block Mass</span>
+                            <span class="parameter-value"><span id="massValue">5.0</span> kg</span>
+                        </div>
                         <input type="range" id="massSlider" min="1" max="10" value="5" step="0.5">
                     </div>
                     
-                    <div class="parameter-control">
-                        <label for="frictionSlider">Friction Coeff (μ): <span id="frictionValue">0.30</span></label>
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Friction Coeff (μ)</span>
+                            <span class="parameter-value"><span id="frictionValue">0.30</span></span>
+                        </div>
                         <input type="range" id="frictionSlider" min="0.05" max="0.80" value="0.30" step="0.05">
                     </div>
 
@@ -124,35 +133,35 @@
                 </div>
 
                 <!-- Results Panel -->
-                <div class="panel results-panel">
-                    <h3>Results Comparison</h3>
+                <div class="panel">
+                    <h3>Acceleration Comparison</h3>
                     
                     <div class="result-row">
-                        <span class="result-label">Frictionless (a = g·sin θ):</span>
+                        <span class="result-label">Textbook:</span>
                         <span id="idealResult" class="result-value">4.90 m/s²</span>
                     </div>
                     
-                    <div class="result-row" id="realResultRow" style="display: none;">
-                        <span class="result-label">With Friction:</span>
+                    <div class="result-row">
+                        <span class="result-label">Real World:</span>
                         <span id="realResult" class="result-value">3.20 m/s²</span>
                     </div>
                     
-                    <div class="result-row" id="differenceRow" style="display: none;">
+                    <div class="result-row">
                         <span class="result-label">Difference:</span>
                         <span id="differenceResult" class="result-value difference">-34.7%</span>
                     </div>
 
                     <div class="equation-display">
-                        <p id="equationUsed"><strong>Using:</strong> a = g·sin(θ)</p>
+                        <p id="equationUsed"><strong>Textbook:</strong> a = g·sin(θ)<br><strong>Real World:</strong> includes friction & rotation</p>
                     </div>
                 </div>
 
                 <!-- Explanation Panel -->
-                <div class="panel explanation-panel">
-                    <h3>💡 Understanding the Model</h3>
+                <div class="panel">
+                    <h3>💡 What You're Seeing</h3>
                     <div id="explanationText" class="explanation-content">
-                        <p>The <strong>frictionless ramp model</strong> assumes no energy loss from surface contact. This simplification gives clean equations: a = g·sin(θ). It works well for very smooth surfaces or quick calculations.</p>
-                        <p><strong>Try toggling assumptions</strong> to see what friction and rotation do to the motion!</p>
+                        <p>The <strong>textbook model</strong> (left) uses simplified assumptions for clean equations. The <strong>real world</strong> (right) shows what actually happens.</p>
+                        <p><strong>Toggle assumptions</strong> to see how each one affects the motion!</p>
                     </div>
                 </div>
             </div>

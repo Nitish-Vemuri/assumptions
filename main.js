@@ -10,7 +10,6 @@ const state = {
     mass: 5, // kg
     frictionCoeff: 0.30, // coefficient of friction (μ)
     isPlaying: true,
-    mode: 'textbook', // 'textbook' or 'reality'
     assumptions: {
         frictionless: true,
         pointMass: true,
@@ -141,17 +140,19 @@ class RampSimulation {
     update(dt) {
         const angleRad = (state.angle * Math.PI) / 180;
         
-        const useFriction = this.isReal;
-        const useRotation = this.isReal;
-        const useAir = this.isReal;
+        // Ideal sim always uses assumptions ON (frictionless, point mass, no air)
+        // Real sim responds to user toggles
+        const useFriction = this.isReal && !state.assumptions.frictionless;
+        const useRotation = this.isReal && !state.assumptions.pointMass;
+        const useAir = this.isReal && !state.assumptions.noAir;
         
         this.block.update(dt, angleRad, state.frictionCoeff, useRotation, useFriction, useAir);
     }
 
     getAcceleration() {
         const angleRad = (state.angle * Math.PI) / 180;
-        const useFriction = this.isReal;
-        const useRotation = this.isReal;
+        const useFriction = this.isReal && !state.assumptions.frictionless;
+        const useRotation = this.isReal && !state.assumptions.pointMass;
         
         return this.block.getAcceleration(angleRad, state.frictionCoeff, useRotation, useFriction);
     }
@@ -400,9 +401,7 @@ class VelocityGraph {
     addData(idealVel, realVel) {
         this.time += 1;
         this.dataIdeal.push({ time: this.time, velocity: idealVel });
-        if (state.mode === 'reality') {
-            this.dataReal.push({ time: this.time, velocity: realVel });
-        }
+        this.dataReal.push({ time: this.time, velocity: realVel });
         
         // Keep only recent data
         if (this.dataIdeal.length > this.maxPoints) {
@@ -441,7 +440,7 @@ class VelocityGraph {
         if (this.dataIdeal.length > 1) {
             this.drawLine(this.dataIdeal, '#0071e3', padding, width - padding, padding, height - padding);
         }
-        if (this.dataReal.length > 1 && state.mode === 'reality') {
+        if (this.dataReal.length > 1) {
             this.drawLine(this.dataReal, '#ff9500', padding, width - padding, padding, height - padding);
         }
         
@@ -449,14 +448,12 @@ class VelocityGraph {
         this.ctx.fillStyle = '#0071e3';
         this.ctx.fillRect(width - 150, 20, 20, 10);
         this.ctx.fillStyle = '#1d1d1f';
-        this.ctx.fillText('Frictionless', width - 125, 29);
+        this.ctx.fillText('Textbook', width - 125, 29);
         
-        if (state.mode === 'reality') {
-            this.ctx.fillStyle = '#ff9500';
-            this.ctx.fillRect(width - 150, 40, 20, 10);
-            this.ctx.fillStyle = '#1d1d1f';
-            this.ctx.fillText('With Friction', width - 125, 49);
-        }
+        this.ctx.fillStyle = '#ff9500';
+        this.ctx.fillRect(width - 150, 40, 20, 10);
+        this.ctx.fillStyle = '#1d1d1f';
+        this.ctx.fillText('Real World', width - 125, 49);
     }
 
     drawLine(data, color, xMin, xMax, yMin, yMax) {
@@ -506,22 +503,10 @@ function init() {
 }
 
 function setupEventListeners() {
-    // Mode toggle
-    document.getElementById('textbookMode').addEventListener('click', () => {
-        state.mode = 'textbook';
-        updateUI();
-    });
-    
-    document.getElementById('realityMode').addEventListener('click', () => {
-        state.mode = 'reality';
-        updateUI();
-    });
-    
     // Assumptions
     document.getElementById('assumptionFrictionless').addEventListener('change', (e) => {
         state.assumptions.frictionless = e.target.checked;
         realSim.reset();
-        idealSim.reset();
         graph.reset();
         updateExplanation();
     });
@@ -529,7 +514,6 @@ function setupEventListeners() {
     document.getElementById('assumptionPointMass').addEventListener('change', (e) => {
         state.assumptions.pointMass = e.target.checked;
         realSim.reset();
-        idealSim.reset();
         graph.reset();
         updateExplanation();
     });
@@ -537,7 +521,6 @@ function setupEventListeners() {
     document.getElementById('assumptionNoAir').addEventListener('change', (e) => {
         state.assumptions.noAir = e.target.checked;
         realSim.reset();
-        idealSim.reset();
         graph.reset();
         updateExplanation();
     });
@@ -586,25 +569,6 @@ function setupEventListeners() {
 }
 
 function updateUI() {
-    // Update mode buttons
-    document.getElementById('textbookMode').classList.toggle('active', state.mode === 'textbook');
-    document.getElementById('realityMode').classList.toggle('active', state.mode === 'reality');
-    
-    // Show/hide real canvas
-    const realWrapper = document.getElementById('realCanvasWrapper');
-    const realResultRow = document.getElementById('realResultRow');
-    const differenceRow = document.getElementById('differenceRow');
-    
-    if (state.mode === 'reality') {
-        realWrapper.style.display = 'block';
-        realResultRow.style.display = 'flex';
-        differenceRow.style.display = 'flex';
-    } else {
-        realWrapper.style.display = 'none';
-        realResultRow.style.display = 'none';
-        differenceRow.style.display = 'none';
-    }
-    
     updateResults();
     updateExplanation();
 }
@@ -631,16 +595,19 @@ function updateResults() {
     const sinTheta = Math.sin(angleRad).toFixed(2);
     const cosTheta = Math.cos(angleRad).toFixed(2);
     
-    let equation = `a = g·sin(θ) = 9.8 × ${sinTheta} = ${idealAccel.toFixed(2)} m/s²`;
-    if (state.mode === 'reality' && !state.assumptions.frictionless) {
-        const mu = state.frictionCoeff;
-        equation = `a = g·sin(θ) - μg·cos(θ) = 9.8(${sinTheta} - ${mu}×${cosTheta}) = ${realAccel.toFixed(2)} m/s²`;
-    }
-    if (state.mode === 'reality' && !state.assumptions.pointMass) {
-        equation += ' ÷ 1.5 (rolling)';
-    }
+    let textbookEq = `a = g·sin(θ) = 9.8 × ${sinTheta} = ${idealAccel.toFixed(2)} m/s²`;
+    let realEq = textbookEq;
     
-    document.getElementById('equationUsed').innerHTML = `<strong>Using:</strong> ${equation}`;
+    if (!state.assumptions.frictionless) {
+        const mu = state.frictionCoeff;
+        realEq = `a = g·sin(θ) - μg·cos(θ) = 9.8(${sinTheta} - ${mu}×${cosTheta})`;
+    }
+    if (!state.assumptions.pointMass) {
+        realEq += ' ÷ 1.5 (rolling)';
+    }
+    realEq += ` = ${realAccel.toFixed(2)} m/s²`;
+    
+    document.getElementById('equationUsed').innerHTML = `<strong>Textbook:</strong> ${textbookEq}<br><strong>Real World:</strong> ${realEq}`;
 }
 
 function updateExplanation() {
@@ -648,6 +615,32 @@ function updateExplanation() {
     
     if (state.assumptions.frictionless && state.assumptions.pointMass && state.assumptions.noAir) {
         explanationEl.innerHTML = `
+            <p>All assumptions are <strong>active</strong>. Both models show the same idealized motion.</p>
+            <p><strong>Toggle assumptions OFF</strong> to see how friction, rotation, or air resistance change the real-world motion!</p>
+        `;
+        return;
+    }
+    
+    let effects = [];
+    
+    if (!state.assumptions.frictionless) {
+        effects.push('<li><strong>Friction added:</strong> Surface contact slows the block. Acceleration decreases by μ·g·cos(θ).</li>');
+    }
+    
+    if (!state.assumptions.pointMass) {
+        effects.push('<li><strong>Rotation enabled:</strong> Block rolls instead of sliding. Energy splits between translation and rotation, reducing acceleration by ~33%.</li>');
+    }
+    
+    if (!state.assumptions.noAir) {
+        effects.push('<li><strong>Air resistance added:</strong> Drag force opposes motion. Effect increases with velocity (F ∝ v²).</li>');
+    }
+    
+    explanationEl.innerHTML = `
+        <p>The <strong>textbook model</strong> (left) ignores these real-world effects. The <strong>real world</strong> (right) includes:</p>
+        <ul>${effects.join('')}</ul>
+        <p>Compare the accelerations and watch how the blocks move differently!</p>
+    `;
+}
             <p>The <strong>frictionless ramp model</strong> assumes no energy loss from surface contact. This simplification gives clean equations: a = g·sin(θ). It works well for very smooth surfaces or quick calculations.</p>
             <p><strong>Try toggling assumptions</strong> to see what friction and rotation do to the motion!</p>
         `;
