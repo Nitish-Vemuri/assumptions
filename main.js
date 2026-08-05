@@ -24,6 +24,8 @@ class Block {
         this.mass = mass;
         this.isReal = isReal;
         this.reset();
+        this.trail = []; // Motion trail
+        this.maxTrailLength = 20;
     }
 
     reset() {
@@ -33,6 +35,7 @@ class Block {
         this.rotation = 0; // angle of block rotation
         this.time = 0;
         this.stopped = false;
+        this.trail = [];
     }
 
     update(dt, angleRad, frictionCoeff, useRotation, useFriction, useAir) {
@@ -163,13 +166,25 @@ class RampSimulation {
         this.rampEndX = this.rampStartX + this.rampLength * SCALE * Math.cos(angleRad);
         this.rampEndY = this.rampStartY + this.rampLength * SCALE * Math.sin(angleRad);
         
+        // Draw ramp shadow
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.shadowBlur = 15;
+        this.ctx.shadowOffsetX = 5;
+        this.ctx.shadowOffsetY = 5;
+        
         // Draw ramp
         this.ctx.strokeStyle = '#495057';
-        this.ctx.lineWidth = 4;
+        this.ctx.lineWidth = 5;
         this.ctx.beginPath();
         this.ctx.moveTo(this.rampStartX, this.rampStartY);
         this.ctx.lineTo(this.rampEndX, this.rampEndY);
         this.ctx.stroke();
+        
+        // Reset shadow
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetX = 0;
+        this.ctx.shadowOffsetY = 0;
         
         // Draw ramp surface (with texture if friction)
         if (this.isReal && !state.assumptions.frictionless) {
@@ -194,10 +209,45 @@ class RampSimulation {
         const blockX = this.rampStartX + (this.rampEndX - this.rampStartX) * blockT;
         const blockY = this.rampStartY + (this.rampEndY - this.rampStartY) * blockT;
         
+        // Add to trail
+        if (this.block.velocity > 0.1) {
+            this.block.trail.push({ x: blockX, y: blockY, alpha: 1.0 });
+            if (this.block.trail.length > this.block.maxTrailLength) {
+                this.block.trail.shift();
+            }
+        }
+        
+        // Draw motion trail
+        this.block.trail.forEach((point, index) => {
+            const alpha = (index / this.block.trail.length) * 0.3;
+            const size = 8 + (index / this.block.trail.length) * 6;
+            this.ctx.fillStyle = this.isReal ? `rgba(231, 76, 60, ${alpha})` : `rgba(102, 126, 234, ${alpha})`;
+            this.ctx.beginPath();
+            this.ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+        
+        // Draw block shadow
+        this.ctx.save();
+        this.ctx.translate(blockX + 5, blockY + 5);
+        this.ctx.rotate(angleRad);
+        this.ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        this.ctx.fillRect(-15, -15, 30, 30);
+        this.ctx.restore();
+        
         // Draw block
         const blockSize = 30;
         this.ctx.save();
         this.ctx.translate(blockX, blockY);
+        
+        // Add glow effect when moving fast
+        if (this.block.velocity > 2) {
+            const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, blockSize * 1.5);
+            gradient.addColorStop(0, this.isReal ? 'rgba(231, 76, 60, 0.4)' : 'rgba(102, 126, 234, 0.4)');
+            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            this.ctx.fillStyle = gradient;
+            this.ctx.fillRect(-blockSize, -blockSize, blockSize * 2, blockSize * 2);
+        }
         
         // Rotate block based on ramp angle and rotation
         if (this.isReal && !state.assumptions.pointMass) {
@@ -206,19 +256,33 @@ class RampSimulation {
             this.ctx.rotate(angleRad);
         }
         
-        // Draw block body
-        this.ctx.fillStyle = this.isReal ? '#e74c3c' : '#667eea';
+        // Draw block body with gradient
+        const blockGradient = this.ctx.createLinearGradient(-blockSize/2, -blockSize/2, blockSize/2, blockSize/2);
+        if (this.isReal) {
+            blockGradient.addColorStop(0, '#e74c3c');
+            blockGradient.addColorStop(1, '#c0392b');
+        } else {
+            blockGradient.addColorStop(0, '#667eea');
+            blockGradient.addColorStop(1, '#5568d3');
+        }
+        this.ctx.fillStyle = blockGradient;
         this.ctx.fillRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
-        this.ctx.strokeStyle = '#212529';
-        this.ctx.lineWidth = 2;
+        
+        // Block border
+        this.ctx.strokeStyle = this.isReal ? '#c0392b' : '#5568d3';
+        this.ctx.lineWidth = 3;
         this.ctx.strokeRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
         
         // Draw rotation indicator (dot) if rotating
         if (this.isReal && !state.assumptions.pointMass) {
             this.ctx.fillStyle = '#ffffff';
+            this.ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.shadowBlur = 3;
             this.ctx.beginPath();
-            this.ctx.arc(blockSize/4, 0, 4, 0, Math.PI * 2);
+            this.ctx.arc(blockSize/4, 0, 5, 0, Math.PI * 2);
             this.ctx.fill();
+            this.ctx.shadowColor = 'transparent';
+            this.ctx.shadowBlur = 0;
         }
         
         this.ctx.restore();
