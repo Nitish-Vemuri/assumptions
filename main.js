@@ -121,6 +121,12 @@ class RampSimulation {
     constructor(canvasId, isReal = false) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
+        
+        // Ensure canvas size is properly set
+        const rect = this.canvas.getBoundingClientRect();
+        this.canvas.width = this.canvas.offsetWidth || 400;
+        this.canvas.height = this.canvas.offsetHeight || 400;
+        
         this.block = new Block(state.mass, isReal);
         this.isReal = isReal;
         this.velocityHistory = [];
