@@ -167,14 +167,15 @@ class RampSimulation {
         this.rampEndY = this.rampStartY + this.rampLength * SCALE * Math.sin(angleRad);
         
         // Draw ramp shadow
-        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
-        this.ctx.shadowBlur = 15;
-        this.ctx.shadowOffsetX = 5;
-        this.ctx.shadowOffsetY = 5;
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.12)';
+        this.ctx.shadowBlur = 8;
+        this.ctx.shadowOffsetX = 2;
+        this.ctx.shadowOffsetY = 3;
         
         // Draw ramp
-        this.ctx.strokeStyle = '#495057';
-        this.ctx.lineWidth = 5;
+        this.ctx.strokeStyle = '#1d1d1f';
+        this.ctx.lineWidth = 6;
+        this.ctx.lineCap = 'round';
         this.ctx.beginPath();
         this.ctx.moveTo(this.rampStartX, this.rampStartY);
         this.ctx.lineTo(this.rampEndX, this.rampEndY);
@@ -188,8 +189,8 @@ class RampSimulation {
         
         // Draw ramp surface (with texture if friction)
         if (this.isReal && !state.assumptions.frictionless) {
-            this.ctx.strokeStyle = '#adb5bd';
-            this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = '#86868b';
+            this.ctx.lineWidth = 1.5;
             // Draw texture lines
             for (let i = 0; i < 20; i++) {
                 const t = i / 20;
@@ -219,9 +220,9 @@ class RampSimulation {
         
         // Draw motion trail
         this.block.trail.forEach((point, index) => {
-            const alpha = (index / this.block.trail.length) * 0.3;
-            const size = 8 + (index / this.block.trail.length) * 6;
-            this.ctx.fillStyle = this.isReal ? `rgba(231, 76, 60, ${alpha})` : `rgba(102, 126, 234, ${alpha})`;
+            const alpha = (index / this.block.trail.length) * 0.15;
+            const size = 6 + (index / this.block.trail.length) * 4;
+            this.ctx.fillStyle = this.isReal ? `rgba(255, 149, 0, ${alpha})` : `rgba(0, 113, 227, ${alpha})`;
             this.ctx.beginPath();
             this.ctx.arc(point.x, point.y, size, 0, Math.PI * 2);
             this.ctx.fill();
@@ -240,10 +241,10 @@ class RampSimulation {
         this.ctx.save();
         this.ctx.translate(blockX, blockY);
         
-        // Add glow effect when moving fast
+        // Add subtle glow effect when moving fast
         if (this.block.velocity > 2) {
-            const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, blockSize * 1.5);
-            gradient.addColorStop(0, this.isReal ? 'rgba(231, 76, 60, 0.4)' : 'rgba(102, 126, 234, 0.4)');
+            const gradient = this.ctx.createRadialGradient(0, 0, 0, 0, 0, blockSize * 1.2);
+            gradient.addColorStop(0, this.isReal ? 'rgba(255, 149, 0, 0.2)' : 'rgba(0, 113, 227, 0.2)');
             gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
             this.ctx.fillStyle = gradient;
             this.ctx.fillRect(-blockSize, -blockSize, blockSize * 2, blockSize * 2);
@@ -256,21 +257,17 @@ class RampSimulation {
             this.ctx.rotate(angleRad);
         }
         
-        // Draw block body with gradient
-        const blockGradient = this.ctx.createLinearGradient(-blockSize/2, -blockSize/2, blockSize/2, blockSize/2);
+        // Draw block body with subtle styling
         if (this.isReal) {
-            blockGradient.addColorStop(0, '#e74c3c');
-            blockGradient.addColorStop(1, '#c0392b');
+            this.ctx.fillStyle = '#ff9500';
         } else {
-            blockGradient.addColorStop(0, '#667eea');
-            blockGradient.addColorStop(1, '#5568d3');
+            this.ctx.fillStyle = '#0071e3';
         }
-        this.ctx.fillStyle = blockGradient;
         this.ctx.fillRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
         
         // Block border
-        this.ctx.strokeStyle = this.isReal ? '#c0392b' : '#5568d3';
-        this.ctx.lineWidth = 3;
+        this.ctx.strokeStyle = this.isReal ? '#e68a00' : '#0077ed';
+        this.ctx.lineWidth = 2;
         this.ctx.strokeRect(-blockSize/2, -blockSize/2, blockSize, blockSize);
         
         // Draw rotation indicator (dot) if rotating
@@ -308,7 +305,7 @@ class RampSimulation {
             const frictionLength = frictionForce * forceScale;
             const frictionX = -frictionLength * Math.cos(angleRad);
             const frictionY = -frictionLength * Math.sin(angleRad);
-            this.drawVector(blockX, blockY, frictionX, frictionY, '#e74c3c', 'f');
+            this.drawVector(blockX, blockY, frictionX, frictionY, '#ff9500', 'f');
         }
         
         // Component down the ramp (for reference in textbook mode)
@@ -316,16 +313,18 @@ class RampSimulation {
             const componentLength = state.mass * G * Math.sin(angleRad) * forceScale;
             const compX = componentLength * Math.cos(angleRad);
             const compY = componentLength * Math.sin(angleRad);
-            this.drawVector(blockX, blockY, compX, compY, '#667eea', 'F');
+            this.drawVector(blockX, blockY, compX, compY, '#0071e3', 'F');
         }
     }
 
     drawVector(x, y, dx, dy, color, label) {
         this.ctx.strokeStyle = color;
         this.ctx.fillStyle = color;
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 2.5;
         
-        // Arrow line
+        // Arrow line with slight shadow for depth
+        this.ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+        this.ctx.shadowBlur = 2;
         this.ctx.beginPath();
         this.ctx.moveTo(x, y);
         this.ctx.lineTo(x + dx, y + dy);
@@ -333,7 +332,7 @@ class RampSimulation {
         
         // Arrow head
         const angle = Math.atan2(dy, dx);
-        const headLength = 8;
+        const headLength = 10;
         this.ctx.beginPath();
         this.ctx.moveTo(x + dx, y + dy);
         this.ctx.lineTo(
@@ -347,27 +346,41 @@ class RampSimulation {
         );
         this.ctx.stroke();
         
-        // Label
-        this.ctx.font = 'bold 14px Arial';
-        this.ctx.fillText(label, x + dx + 5, y + dy - 5);
+        // Reset shadow
+        this.ctx.shadowColor = 'transparent';
+        this.ctx.shadowBlur = 0;
+        
+        // Label with background for readability
+        this.ctx.font = 'bold 13px -apple-system, sans-serif';
+        const metrics = this.ctx.measureText(label);
+        const labelX = x + dx + 8;
+        const labelY = y + dy - 8;
+        
+        this.ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        this.ctx.fillRect(labelX - 2, labelY - 10, metrics.width + 4, 14);
+        
+        this.ctx.fillStyle = color;
+        this.ctx.fillText(label, labelX, labelY);
     }
 
     drawAngleArc() {
         const arcRadius = 40;
         const angleRad = (state.angle * Math.PI) / 180;
         
-        this.ctx.strokeStyle = '#6c757d';
-        this.ctx.lineWidth = 1;
+        this.ctx.strokeStyle = '#86868b';
+        this.ctx.lineWidth = 1.5;
+        this.ctx.setLineDash([3, 3]);
         this.ctx.beginPath();
         this.ctx.arc(this.rampStartX, this.rampStartY, arcRadius, 0, angleRad);
         this.ctx.stroke();
+        this.ctx.setLineDash([]);
         
-        // Angle label
-        this.ctx.fillStyle = '#495057';
-        this.ctx.font = '12px Arial';
+        // Angle label with better styling
+        this.ctx.fillStyle = '#1d1d1f';
+        this.ctx.font = '13px -apple-system, sans-serif';
         this.ctx.fillText(
             state.angle + '°',
-            this.rampStartX + arcRadius + 10,
+            this.rampStartX + arcRadius + 12,
             this.rampStartY + 5
         );
     }
@@ -405,13 +418,13 @@ class VelocityGraph {
         const height = this.canvas.height;
         const padding = 40;
         
-        // Clear
-        this.ctx.fillStyle = '#ffffff';
+        // Clear with subtle background
+        this.ctx.fillStyle = '#f5f5f7';
         this.ctx.fillRect(0, 0, width, height);
         
         // Draw axes
-        this.ctx.strokeStyle = '#495057';
-        this.ctx.lineWidth = 2;
+        this.ctx.strokeStyle = '#86868b';
+        this.ctx.lineWidth = 1.5;
         this.ctx.beginPath();
         this.ctx.moveTo(padding, padding);
         this.ctx.lineTo(padding, height - padding);
@@ -419,29 +432,29 @@ class VelocityGraph {
         this.ctx.stroke();
         
         // Labels
-        this.ctx.fillStyle = '#495057';
-        this.ctx.font = '12px Arial';
+        this.ctx.fillStyle = '#1d1d1f';
+        this.ctx.font = '13px -apple-system, sans-serif';
         this.ctx.fillText('Velocity (m/s)', 10, 20);
         this.ctx.fillText('Time', width - 60, height - 10);
         
         // Draw data
         if (this.dataIdeal.length > 1) {
-            this.drawLine(this.dataIdeal, '#667eea', padding, width - padding, padding, height - padding);
+            this.drawLine(this.dataIdeal, '#0071e3', padding, width - padding, padding, height - padding);
         }
         if (this.dataReal.length > 1 && state.mode === 'reality') {
-            this.drawLine(this.dataReal, '#e74c3c', padding, width - padding, padding, height - padding);
+            this.drawLine(this.dataReal, '#ff9500', padding, width - padding, padding, height - padding);
         }
         
         // Legend
-        this.ctx.fillStyle = '#667eea';
+        this.ctx.fillStyle = '#0071e3';
         this.ctx.fillRect(width - 150, 20, 20, 10);
-        this.ctx.fillStyle = '#495057';
+        this.ctx.fillStyle = '#1d1d1f';
         this.ctx.fillText('Frictionless', width - 125, 29);
         
         if (state.mode === 'reality') {
-            this.ctx.fillStyle = '#e74c3c';
+            this.ctx.fillStyle = '#ff9500';
             this.ctx.fillRect(width - 150, 40, 20, 10);
-            this.ctx.fillStyle = '#495057';
+            this.ctx.fillStyle = '#1d1d1f';
             this.ctx.fillText('With Friction', width - 125, 49);
         }
     }
@@ -452,7 +465,9 @@ class VelocityGraph {
         const yRange = yMax - yMin;
         
         this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 2.5;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
         this.ctx.beginPath();
         
         data.forEach((point, index) => {
