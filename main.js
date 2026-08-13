@@ -40,8 +40,9 @@ class Block {
     }
 
     update(dt, angleRad, frictionCoeff, useRotation, useFriction, useAir) {
-        // Note: don't early-return on stopped — we must re-evaluate static friction threshold each frame
-        this.time += dt;
+        if (this.stopped) {
+            return;
+        }
 
         // Forces
         const mgSinTheta = this.mass * G * Math.sin(angleRad);
@@ -55,24 +56,17 @@ class Block {
             const muK = state.muKinetic;
             const staticMax = muS * mgCosTheta;
 
-            // If block is essentially at rest, check static friction threshold
-            if (Math.abs(this.velocity) < 1e-3) {
+            // If the block is at rest, check whether static friction is enough to prevent motion.
+            if (Math.abs(this.velocity) < 1e-6) {
                 if (mgSinTheta <= staticMax) {
-                    // Static friction holds: no acceleration
                     this.velocity = 0;
                     this.stopped = true;
-                    acceleration = 0;
-                } else {
-                    // Static friction overcome; use kinetic friction while moving
-                    this.stopped = false;
-                    const frictionForce = muK * mgCosTheta;
-                    netForce -= frictionForce;
+                    return;
                 }
-            } else {
-                // Already moving: kinetic friction applies
-                const frictionForce = muK * mgCosTheta;
-                netForce -= frictionForce;
             }
+
+            const frictionForce = muK * mgCosTheta;
+            netForce -= frictionForce;
         }
 
         // Air resistance (simplified drag: F = 0.5 * C * ρ * A * v²)
@@ -82,31 +76,32 @@ class Block {
             netForce -= Math.min(dragForce, netForce);
         }
 
-        // If not stopped (or just overcame static), compute acceleration
-        if (!this.stopped) {
-            if (useRotation && !state.assumptions.pointMass) {
-                const rotationalFactor = 1.5;
-                acceleration = netForce / (this.mass * rotationalFactor);
+        if (useRotation && !state.assumptions.pointMass) {
+            const rotationalFactor = 1.5;
+            acceleration = netForce / (this.mass * rotationalFactor);
 
-                // Update angular velocity (assuming radius = 0.3m)
-                const radius = 0.3;
-                this.angularVelocity += (acceleration / radius) * dt;
-                this.rotation += this.angularVelocity * dt;
-            } else {
-                acceleration = netForce / this.mass;
-            }
+            const radius = 0.3;
+            this.angularVelocity += (acceleration / radius) * dt;
+            this.rotation += this.angularVelocity * dt;
+        } else {
+            acceleration = netForce / this.mass;
+        }
 
-            // Update velocity and position
-            this.velocity += acceleration * dt;
-            this.position += this.velocity * dt;
+        this.velocity += acceleration * dt;
+        this.position += this.velocity * dt;
+        this.time += dt;
 
-            // Safety checks
-            if (this.velocity < 0) this.velocity = 0;
-            if (this.position > 8) {
-                this.position = 8;
-                this.velocity = 0;
-                this.stopped = true;
-            }
+        if (this.velocity <= 0 && netForce <= 0) {
+            this.velocity = 0;
+            this.stopped = true;
+            return;
+        }
+
+        if (this.position > 8) {
+            this.position = 8;
+            this.velocity = 0;
+            this.stopped = true;
+            return;
         }
     }
 
@@ -715,10 +710,11 @@ function animate() {
     if (state.isPlaying) {
         idealSim.update(DT);
         realSim.update(DT);
-        
-        // Update graph every few frames
-        if (Math.floor(idealSim.block.time * 60) % 3 === 0) {
-            graph.addData(idealSim.block.velocity, realSim.block.velocity);
+
+        if (!idealSim.block.stopped || !realSim.block.stopped) {
+            if (Math.floor((idealSim.block.time + realSim.block.time) * 60) % 3 === 0) {
+                graph.addData(idealSim.block.velocity, realSim.block.velocity);
+            }
         }
     }
     
