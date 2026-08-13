@@ -11,6 +11,10 @@ const state = {
     // Friction: static (μs) and kinetic (μk)
     muStatic: 0.40,
     muKinetic: 0.30,
+    // Pendulum params
+    pendulumLength: 1.0, // meters
+    pendulumInitAngle: 15, // degrees
+    pendulumDamping: 0.05,
     isPlaying: true,
     assumptions: {
         frictionless: true,
@@ -429,6 +433,94 @@ class RampSimulation {
     }
 }
 
+// Pendulum model
+class Pendulum {
+    constructor(length = 1.0, mass = 1.0, isReal = false) {
+        this.length = length;
+        this.mass = mass;
+        this.isReal = isReal;
+        this.reset();
+    }
+
+    reset() {
+        // angle in radians
+        this.angle = (state.pendulumInitAngle * Math.PI) / 180;
+        this.angularVelocity = 0;
+        this.time = 0;
+    }
+
+    update(dt, useSmallAngle, useDamping) {
+        // equation: theta'' = - (g/L) * sin(theta) - (b/m) * theta'
+        const gOverL = G / this.length;
+        const dampingTerm = useDamping ? (state.pendulumDamping / this.mass) * this.angularVelocity : 0;
+        const restoring = useSmallAngle ? gOverL * this.angle : gOverL * Math.sin(this.angle);
+        const angularAcc = -restoring - dampingTerm;
+
+        this.angularVelocity += angularAcc * dt;
+        this.angle += this.angularVelocity * dt;
+        this.time += dt;
+    }
+
+    getPeriodSmallAngle() {
+        return 2 * Math.PI * Math.sqrt(this.length / G);
+    }
+}
+
+class PendulumSimulation {
+    constructor(canvasId, isReal = false) {
+        this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.isReal = isReal;
+        this.pendulum = new Pendulum(state.pendulumLength, 1, isReal);
+        this.ensureCanvasSize = function() {
+            if (!this.canvas) return;
+            const rect = this.canvas.getBoundingClientRect();
+            this.canvas.width = Math.round(rect.width || this.canvas.width || 400);
+            this.canvas.height = Math.round(rect.height || this.canvas.height || 300);
+        };
+    }
+
+    reset() {
+        this.pendulum.length = state.pendulumLength;
+        this.pendulum.reset();
+    }
+
+    update(dt) {
+        const useSmall = !this.isReal; // textbook uses small-angle
+        const useDamping = this.isReal; // real includes damping by default
+        this.pendulum.length = state.pendulumLength;
+        this.pendulum.update(dt, useSmall, useDamping);
+    }
+
+    draw() {
+        if (!this.canvas || !this.ctx) return;
+        this.ensureCanvasSize();
+        const ctx = this.ctx;
+        ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+
+        const cx = this.canvas.width / 2;
+        const cy = 50;
+        const Lpx = this.pendulum.length * SCALE;
+        const x = cx + Lpx * Math.sin(this.pendulum.angle);
+        const y = cy + Lpx * Math.cos(this.pendulum.angle);
+
+        // rod
+        ctx.strokeStyle = this.isReal ? '#ff9500' : '#0071e3';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+
+        // bob
+        ctx.fillStyle = this.isReal ? '#ff9500' : '#0071e3';
+        ctx.beginPath();
+        ctx.arc(x, y, 12, 0, Math.PI*2);
+        ctx.fill();
+    }
+}
+
 // Graph class for velocity over time
 class VelocityGraph {
     constructor(canvasId) {
@@ -532,12 +624,17 @@ class VelocityGraph {
 
 // Initialize simulations
 let idealSim, realSim, graph;
+let pendulumIdeal, pendulumReal, pendulumGraph;
 let animationFrameId;
 
 function init() {
     idealSim = new RampSimulation('idealCanvas', false);
     realSim = new RampSimulation('realCanvas', true);
     graph = new VelocityGraph('graphCanvas');
+    // Pendulum sims
+    pendulumIdeal = new PendulumSimulation('pendulumIdealCanvas', false);
+    pendulumReal = new PendulumSimulation('pendulumRealCanvas', true);
+    pendulumGraph = new VelocityGraph('pendulumGraphCanvas');
     
     setupEventListeners();
     updateUI();
@@ -597,6 +694,43 @@ function setupEventListeners() {
         updateResults();
     });
 
+    // Pendulum controls
+    const pLen = document.getElementById('pendulumLengthSlider');
+    if (pLen) {
+        pLen.addEventListener('input', (e) => {
+            state.pendulumLength = parseFloat(e.target.value);
+            document.getElementById('pendulumLengthValue').textContent = state.pendulumLength.toFixed(2);
+            pendulumIdeal.reset();
+            pendulumReal.reset();
+            pendulumGraph.reset();
+            updateUI();
+        });
+    }
+
+    const pAng = document.getElementById('pendulumAngleSlider');
+    if (pAng) {
+        pAng.addEventListener('input', (e) => {
+            state.pendulumInitAngle = parseFloat(e.target.value);
+            document.getElementById('pendulumAngleValue').textContent = state.pendulumInitAngle;
+            pendulumIdeal.reset();
+            pendulumReal.reset();
+            pendulumGraph.reset();
+            updateUI();
+        });
+    }
+
+    const pDamp = document.getElementById('pendulumDampingSlider');
+    if (pDamp) {
+        pDamp.addEventListener('input', (e) => {
+            state.pendulumDamping = parseFloat(e.target.value);
+            document.getElementById('pendulumDampingValue').textContent = state.pendulumDamping.toFixed(2);
+            pendulumIdeal.reset();
+            pendulumReal.reset();
+            pendulumGraph.reset();
+            updateUI();
+        });
+    }
+
     // Static friction slider
     const staticSlider = document.getElementById('staticFrictionSlider');
     if (staticSlider) {
@@ -620,6 +754,9 @@ function setupEventListeners() {
         idealSim.reset();
         realSim.reset();
         graph.reset();
+        if (pendulumIdeal) pendulumIdeal.reset();
+        if (pendulumReal) pendulumReal.reset();
+        if (pendulumGraph) pendulumGraph.reset();
     });
 }
 
@@ -629,6 +766,23 @@ function updateUI() {
     if (sv) sv.textContent = state.muStatic.toFixed(2);
     const kv = document.getElementById('frictionValue');
     if (kv) kv.textContent = state.muKinetic.toFixed(2);
+
+    // Pendulum displays
+    const pl = document.getElementById('pendulumLengthValue');
+    if (pl) pl.textContent = state.pendulumLength.toFixed(2);
+    const pa = document.getElementById('pendulumAngleValue');
+    if (pa) pa.textContent = state.pendulumInitAngle;
+    const pd = document.getElementById('pendulumDampingValue');
+    if (pd) pd.textContent = state.pendulumDamping.toFixed(2);
+
+    if (pendulumIdeal) {
+        document.getElementById('pendulumIdealPeriod').textContent = pendulumIdeal.pendulum.getPeriodSmallAngle().toFixed(2) + ' s';
+        document.getElementById('pendulumIdealAngle').textContent = (state.pendulumInitAngle).toFixed(1) + '°';
+    }
+    if (pendulumReal) {
+        document.getElementById('pendulumRealPeriod').textContent = pendulumReal.pendulum.getPeriodSmallAngle().toFixed(2) + ' s';
+        document.getElementById('pendulumRealAngle').textContent = (state.pendulumInitAngle).toFixed(1) + '°';
+    }
 
     updateResults();
     updateExplanation();
@@ -716,11 +870,26 @@ function animate() {
                 graph.addData(idealSim.block.velocity, realSim.block.velocity);
             }
         }
+
+        // Pendulum updates
+        if (pendulumIdeal && pendulumReal) {
+            pendulumIdeal.update(DT);
+            pendulumReal.update(DT);
+            if (Math.floor((pendulumIdeal.pendulum.time + pendulumReal.pendulum.time) * 60) % 3 === 0) {
+                // use angular displacement (deg) as 'velocity' proxy for the graph
+                const idealDeg = Math.abs(pendulumIdeal.pendulum.angle * 180 / Math.PI);
+                const realDeg = Math.abs(pendulumReal.pendulum.angle * 180 / Math.PI);
+                if (pendulumGraph) pendulumGraph.addData(idealDeg, realDeg);
+            }
+        }
     }
     
     idealSim.draw();
     realSim.draw();
     graph.draw();
+    if (pendulumIdeal) pendulumIdeal.draw();
+    if (pendulumReal) pendulumReal.draw();
+    if (pendulumGraph) pendulumGraph.draw();
     updateResults();
     
     animationFrameId = requestAnimationFrame(animate);

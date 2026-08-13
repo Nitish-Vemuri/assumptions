@@ -140,6 +140,34 @@
                     </div>
                 </div>
 
+                <!-- Pendulum Controls -->
+                <div class="panel">
+                    <h3>Pendulum Parameters</h3>
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Length (m)</span>
+                            <span class="parameter-value"><span id="pendulumLengthValue">1.00</span> m</span>
+                        </div>
+                        <input type="range" id="pendulumLengthSlider" min="0.2" max="3.0" value="1.0" step="0.1">
+                    </div>
+
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Initial Angle (°)</span>
+                            <span class="parameter-value"><span id="pendulumAngleValue">15</span>°</span>
+                        </div>
+                        <input type="range" id="pendulumAngleSlider" min="1" max="90" value="15" step="1">
+                    </div>
+
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Damping (b)</span>
+                            <span class="parameter-value"><span id="pendulumDampingValue">0.05</span></span>
+                        </div>
+                        <input type="range" id="pendulumDampingSlider" min="0" max="1" value="0.05" step="0.01">
+                    </div>
+                </div>
+
                 <!-- Results Panel -->
                 <div class="panel">
                     <h3>Acceleration Comparison</h3>
@@ -179,6 +207,47 @@
         <div class="graph-section">
             <h3>Velocity Over Time</h3>
             <canvas id="graphCanvas" width="900" height="200"></canvas>
+        </div>
+
+        <!-- Pendulum Scenario -->
+        <div class="graph-section">
+            <h3>Simple Pendulum — Textbook vs Real</h3>
+            <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                    <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Textbook (Small-angle)</h4>
+                    <canvas id="pendulumIdealCanvas" width="400" height="300"></canvas>
+                    <div class="readings" style="margin-top:12px;">
+                        <div class="reading-item">
+                            <span class="reading-label">Period:</span>
+                            <span id="pendulumIdealPeriod" class="reading-value">0.00 s</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Angle:</span>
+                            <span id="pendulumIdealAngle" class="reading-value">0.00°</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                    <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Real World (Nonlinear + Damping)</h4>
+                    <canvas id="pendulumRealCanvas" width="400" height="300"></canvas>
+                    <div class="readings" style="margin-top:12px;">
+                        <div class="reading-item">
+                            <span class="reading-label">Period (approx):</span>
+                            <span id="pendulumRealPeriod" class="reading-value">0.00 s</span>
+                        </div>
+                        <div class="reading-item">
+                            <span class="reading-label">Angle:</span>
+                            <span id="pendulumRealAngle" class="reading-value">0.00°</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="flex-basis:100%;"></div>
+                <div style="width:100%;margin-top:12px;">
+                    <canvas id="pendulumGraphCanvas" width="900" height="120" style="width:100%;height:120px;border-radius:8px;background:#f5f5f7;border:1px solid rgba(0,0,0,0.06);"></canvas>
+                </div>
+            </div>
         </div>
 
         <footer>
