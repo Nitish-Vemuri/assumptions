@@ -120,6 +120,10 @@ class Block {
 class RampSimulation {
     constructor(canvasId, isReal = false) {
         this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) {
+            console.error('Canvas not found:', canvasId);
+            return;
+        }
         this.ctx = this.canvas.getContext('2d');
         
         // Ensure canvas size is properly set
@@ -164,7 +168,7 @@ class RampSimulation {
     }
 
     draw() {
-        // Clear canvas
+        // Clear canvas with white background
         this.ctx.fillStyle = '#ffffff';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
         
@@ -646,35 +650,6 @@ function updateExplanation() {
         <ul>${effects.join('')}</ul>
         <p>Compare the accelerations and watch how the blocks move differently!</p>
     `;
-}
-            <p>The <strong>frictionless ramp model</strong> assumes no energy loss from surface contact. This simplification gives clean equations: a = g·sin(θ). It works well for very smooth surfaces or quick calculations.</p>
-            <p><strong>Try toggling assumptions</strong> to see what friction and rotation do to the motion!</p>
-        `;
-    } else {
-        let text = '<p><strong>You\'ve modified the model!</strong> Here\'s what changed:</p><ul>';
-        
-        if (!state.assumptions.frictionless) {
-            text += `<li>🔴 <strong>Friction is now active:</strong> The surface resists sliding with force f = μN = μmg·cos(θ). This opposes motion and reduces acceleration. At μ = ${state.frictionCoeff.toFixed(2)}, friction removes ~${(state.frictionCoeff * Math.cos(state.angle * Math.PI / 180) * 100).toFixed(0)}% of the gravitational component.</li>`;
-        }
-        
-        if (!state.assumptions.pointMass) {
-            text += '<li>🔴 <strong>Block can now rotate:</strong> Energy splits between sliding and rolling. For a solid block, rotational inertia reduces acceleration by a factor of 1.5. Notice the white dot rotating - this visualizes angular motion.</li>';
-        }
-        
-        if (!state.assumptions.noAir) {
-            text += '<li>🔴 <strong>Air resistance active:</strong> Drag force increases with velocity squared (F ∝ v²), causing additional deceleration at higher speeds.</li>';
-        }
-        
-        text += '</ul>';
-        
-        if (!state.assumptions.frictionless || !state.assumptions.pointMass) {
-            text += '<p>📚 <strong>For exams:</strong> Unless specified, still use a = g·sin(θ) for frictionless incline problems.</p>';
-        }
-        
-        text += '<p>🌍 <strong>Real world:</strong> All surfaces have friction. Engineering often uses coefficients: ice ≈ 0.05, wood ≈ 0.3, rubber ≈ 0.7.</p>';
-        
-        explanationEl.innerHTML = text;
-    }
 }
 
 function animate() {
