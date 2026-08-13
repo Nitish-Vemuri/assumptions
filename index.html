@@ -120,7 +120,15 @@
                     
                     <div class="parameter-item">
                         <div class="parameter-label">
-                            <span>Friction Coeff (μ)</span>
+                            <span>Static Friction (μs)</span>
+                            <span class="parameter-value"><span id="staticFrictionValue">0.40</span></span>
+                        </div>
+                        <input type="range" id="staticFrictionSlider" min="0.10" max="1.00" value="0.40" step="0.05">
+                    </div>
+
+                    <div class="parameter-item">
+                        <div class="parameter-label">
+                            <span>Kinetic Friction (μk)</span>
                             <span class="parameter-value"><span id="frictionValue">0.30</span></span>
                         </div>
                         <input type="range" id="frictionSlider" min="0.05" max="0.80" value="0.30" step="0.05">

@@ -8,7 +8,9 @@ const SCALE = 50; // pixels per meter
 const state = {
     angle: 30, // degrees
     mass: 5, // kg
-    frictionCoeff: 0.30, // coefficient of friction (μ)
+    // Friction: static (μs) and kinetic (μk)
+    muStatic: 0.40,
+    muKinetic: 0.30,
     isPlaying: true,
     assumptions: {
         frictionless: true,
@@ -38,8 +40,7 @@ class Block {
     }
 
     update(dt, angleRad, frictionCoeff, useRotation, useFriction, useAir) {
-        if (this.stopped) return;
-
+        // Note: don't early-return on stopped — we must re-evaluate static friction threshold each frame
         this.time += dt;
 
         // Forces
@@ -47,63 +48,83 @@ class Block {
         const mgCosTheta = this.mass * G * Math.cos(angleRad);
         
         let netForce = mgSinTheta;
-        let acceleration;
+        let acceleration = 0;
 
-        // Friction force
         if (useFriction && !state.assumptions.frictionless) {
-            const frictionForce = frictionCoeff * mgCosTheta;
-            netForce -= frictionForce;
+            const muS = state.muStatic;
+            const muK = state.muKinetic;
+            const staticMax = muS * mgCosTheta;
+
+            // If block is essentially at rest, check static friction threshold
+            if (Math.abs(this.velocity) < 1e-3) {
+                if (mgSinTheta <= staticMax) {
+                    // Static friction holds: no acceleration
+                    this.velocity = 0;
+                    this.stopped = true;
+                    acceleration = 0;
+                } else {
+                    // Static friction overcome; use kinetic friction while moving
+                    this.stopped = false;
+                    const frictionForce = muK * mgCosTheta;
+                    netForce -= frictionForce;
+                }
+            } else {
+                // Already moving: kinetic friction applies
+                const frictionForce = muK * mgCosTheta;
+                netForce -= frictionForce;
+            }
         }
 
         // Air resistance (simplified drag: F = 0.5 * C * ρ * A * v²)
         if (useAir && !state.assumptions.noAir && this.velocity > 0) {
             const dragCoeff = 0.1; // Simplified
             const dragForce = dragCoeff * this.velocity * this.velocity;
-            netForce -= Math.min(dragForce, netForce); // Don't reverse direction
+            netForce -= Math.min(dragForce, netForce);
         }
 
-        // Check if rolling or sliding
-        if (useRotation && !state.assumptions.pointMass) {
-            // Rolling: Energy splits between translation and rotation
-            // For solid cylinder: I = 0.5 * m * r²
-            // Acceleration is reduced by factor of (1 + I/mr²) = 1.5 for cylinder
-            const rotationalFactor = 1.5;
-            acceleration = netForce / (this.mass * rotationalFactor);
-            
-            // Update angular velocity (assuming radius = 0.3m)
-            const radius = 0.3;
-            this.angularVelocity += (acceleration / radius) * dt;
-            this.rotation += this.angularVelocity * dt;
-        } else {
-            // Sliding: All force goes to translation
-            acceleration = netForce / this.mass;
-        }
+        // If not stopped (or just overcame static), compute acceleration
+        if (!this.stopped) {
+            if (useRotation && !state.assumptions.pointMass) {
+                const rotationalFactor = 1.5;
+                acceleration = netForce / (this.mass * rotationalFactor);
 
-        // Update velocity and position
-        this.velocity += acceleration * dt;
-        this.position += this.velocity * dt;
+                // Update angular velocity (assuming radius = 0.3m)
+                const radius = 0.3;
+                this.angularVelocity += (acceleration / radius) * dt;
+                this.rotation += this.angularVelocity * dt;
+            } else {
+                acceleration = netForce / this.mass;
+            }
 
-        // Stop if velocity becomes negative (shouldn't happen, but safety check)
-        if (this.velocity < 0) {
-            this.velocity = 0;
-            this.stopped = true;
-        }
+            // Update velocity and position
+            this.velocity += acceleration * dt;
+            this.position += this.velocity * dt;
 
-        // Stop if reached bottom (8 meters)
-        if (this.position > 8) {
-            this.position = 8;
-            this.stopped = true;
+            // Safety checks
+            if (this.velocity < 0) this.velocity = 0;
+            if (this.position > 8) {
+                this.position = 8;
+                this.velocity = 0;
+                this.stopped = true;
+            }
         }
     }
 
     getAcceleration(angleRad, frictionCoeff, useRotation, useFriction) {
         const mgSinTheta = this.mass * G * Math.sin(angleRad);
         const mgCosTheta = this.mass * G * Math.cos(angleRad);
-        
+
         let netForce = mgSinTheta;
 
         if (useFriction && !state.assumptions.frictionless) {
-            const frictionForce = frictionCoeff * mgCosTheta;
+            // If static threshold not exceeded, acceleration is zero
+            const muS = state.muStatic;
+            const muK = state.muKinetic;
+            const staticMax = muS * mgCosTheta;
+            if (mgSinTheta <= staticMax) {
+                return 0;
+            }
+            const frictionForce = muK * mgCosTheta;
             netForce -= frictionForce;
         }
 
@@ -156,7 +177,7 @@ class RampSimulation {
         const useRotation = this.isReal && !state.assumptions.pointMass;
         const useAir = this.isReal && !state.assumptions.noAir;
         
-        this.block.update(dt, angleRad, state.frictionCoeff, useRotation, useFriction, useAir);
+        this.block.update(dt, angleRad, state.muKinetic, useRotation, useFriction, useAir);
     }
 
     getAcceleration() {
@@ -164,7 +185,7 @@ class RampSimulation {
         const useFriction = this.isReal && !state.assumptions.frictionless;
         const useRotation = this.isReal && !state.assumptions.pointMass;
         
-        return this.block.getAcceleration(angleRad, state.frictionCoeff, useRotation, useFriction);
+        return this.block.getAcceleration(angleRad, state.muKinetic, useRotation, useFriction);
     }
 
     draw() {
@@ -310,9 +331,17 @@ class RampSimulation {
         this.drawVector(blockX, blockY, 0, gravityLength, '#2ecc71', 'mg');
         
         if (this.isReal && !state.assumptions.frictionless) {
-            // Friction force (up the ramp)
+            // Friction force (up the ramp). Use kinetic coefficient when moving; if static, visualize resisting force
             const normalForce = state.mass * G * Math.cos(angleRad);
-            const frictionForce = state.frictionCoeff * normalForce;
+            let frictionForce = state.muKinetic * normalForce;
+            // If block is stopped and static friction threshold holds, show equal-and-opposite friction
+            if (Math.abs(this.block.velocity) < 1e-3) {
+                const staticMax = state.muStatic * normalForce;
+                const mgSinTheta = state.mass * G * Math.sin(angleRad);
+                if (mgSinTheta <= staticMax) {
+                    frictionForce = mgSinTheta; // static friction balancing component down ramp
+                }
+            }
             const frictionLength = frictionForce * forceScale;
             const frictionX = -frictionLength * Math.cos(angleRad);
             const frictionY = -frictionLength * Math.sin(angleRad);
@@ -557,13 +586,26 @@ function setupEventListeners() {
     });
     
     document.getElementById('frictionSlider').addEventListener('input', (e) => {
-        state.frictionCoeff = parseFloat(e.target.value);
-        document.getElementById('frictionValue').textContent = state.frictionCoeff.toFixed(2);
+        state.muKinetic = parseFloat(e.target.value);
+        document.getElementById('frictionValue').textContent = state.muKinetic.toFixed(2);
         idealSim.reset();
         realSim.reset();
         graph.reset();
         updateResults();
     });
+
+    // Static friction slider
+    const staticSlider = document.getElementById('staticFrictionSlider');
+    if (staticSlider) {
+        staticSlider.addEventListener('input', (e) => {
+            state.muStatic = parseFloat(e.target.value);
+            document.getElementById('staticFrictionValue').textContent = state.muStatic.toFixed(2);
+            idealSim.reset();
+            realSim.reset();
+            graph.reset();
+            updateResults();
+        });
+    }
     
     // Controls
     document.getElementById('playPauseBtn').addEventListener('click', () => {
@@ -579,6 +621,12 @@ function setupEventListeners() {
 }
 
 function updateUI() {
+    // Sync parameter displays
+    const sv = document.getElementById('staticFrictionValue');
+    if (sv) sv.textContent = state.muStatic.toFixed(2);
+    const kv = document.getElementById('frictionValue');
+    if (kv) kv.textContent = state.muKinetic.toFixed(2);
+
     updateResults();
     updateExplanation();
 }
@@ -609,8 +657,11 @@ function updateResults() {
     let realEq = textbookEq;
     
     if (!state.assumptions.frictionless) {
-        const mu = state.frictionCoeff;
-        realEq = `a = g·sin(θ) - μg·cos(θ) = 9.8(${sinTheta} - ${mu}×${cosTheta})`;
+        const muK = state.muKinetic;
+        const muS = state.muStatic;
+        realEq = `a = g·sin(θ) - μ_k g·cos(θ) = 9.8(${sinTheta} - ${muK}×${cosTheta})`;
+        // Note: if static friction holds, a = 0 (no motion until threshold exceeded)
+        realEq += `<br><small>static μ_s = ${muS}, kinetic μ_k = ${muK}</small>`;
     }
     if (!state.assumptions.pointMass) {
         realEq += ' ÷ 1.5 (rolling)';
