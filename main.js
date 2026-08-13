@@ -146,12 +146,8 @@ class RampSimulation {
             return;
         }
         this.ctx = this.canvas.getContext('2d');
-        
-        // Ensure canvas size is properly set
-        const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = this.canvas.offsetWidth || 400;
-        this.canvas.height = this.canvas.offsetHeight || 400;
-        
+
+        this.ensureCanvasSize();
         this.block = new Block(state.mass, isReal);
         this.isReal = isReal;
         this.velocityHistory = [];
@@ -161,6 +157,15 @@ class RampSimulation {
         this.rampStartY = 100;
         this.rampEndX = 350;
         this.rampEndY = 300;
+    }
+
+    ensureCanvasSize() {
+        if (!this.canvas) return;
+        const rect = this.canvas.getBoundingClientRect();
+        const width = Math.max(300, Math.round(rect.width || this.canvas.width || 400));
+        const height = Math.max(300, Math.round(rect.height || this.canvas.height || 400));
+        this.canvas.width = width;
+        this.canvas.height = height;
     }
 
     reset() {
@@ -189,6 +194,9 @@ class RampSimulation {
     }
 
     draw() {
+        if (!this.canvas || !this.ctx) return;
+        this.ensureCanvasSize();
+
         // Clear canvas with white background
         this.ctx.fillStyle = '#ffffff';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
