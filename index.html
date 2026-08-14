@@ -257,6 +257,46 @@
                 </div>
             </div>
 
+            <div id="projectileModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>Projectile Motion with Drag — Textbook vs Real</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Textbook (No Drag)</h4>
+                            <canvas id="projectileIdealCanvas" width="400" height="260"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Range:</span><span id="projectileIdealRange" class="reading-value">0.0 m</span></div>
+                                <div class="reading-item"><span class="reading-label">Height:</span><span id="projectileIdealHeight" class="reading-value">0.0 m</span></div>
+                            </div>
+                        </div>
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Real World (Drag)</h4>
+                            <canvas id="projectileRealCanvas" width="400" height="260"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Range:</span><span id="projectileRealRange" class="reading-value">0.0 m</span></div>
+                                <div class="reading-item"><span class="reading-label">Height:</span><span id="projectileRealHeight" class="reading-value">0.0 m</span></div>
+                            </div>
+                        </div>
+
+                        <div class="panel" style="width:100%;margin-top:12px;">
+                            <h3>Projectile Parameters</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Speed</span><span class="parameter-value"><span id="projectileSpeedValue">26</span> m/s</span></div>
+                                <input type="range" id="projectileSpeedSlider" min="10" max="60" value="26" step="2">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Launch Angle</span><span class="parameter-value"><span id="projectileAngleValue">52</span>°</span></div>
+                                <input type="range" id="projectileAngleSlider" min="15" max="75" value="52" step="1">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Drag</span><span class="parameter-value"><span id="projectileDragValue">0.04</span></span></div>
+                                <input type="range" id="projectileDragSlider" min="0.00" max="0.20" value="0.04" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div id="thermoModelSection" class="model-section hidden">
                 <div class="graph-section">
                     <h3>Ideal Gas Expansion — Textbook vs Real</h3>

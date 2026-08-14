@@ -22,6 +22,10 @@ const state = {
     // Free-fall params
     freeFallMass: 2.0,
     dragCoeff: 0.12,
+    // Projectile params
+    projectileSpeed: 26,
+    projectileAngle: 52,
+    projectileDrag: 0.04,
     thermoTemperature: 300,
     thermoVolume: 1.0,
     thermoHeatLoss: 0.2,
@@ -59,6 +63,12 @@ const MODEL_CATALOG = [
         title: 'Free-Fall with Drag',
         summary: 'Compare constant gravity to a drag-limited real fall with terminal velocity.',
         description: 'Watch how the textbook no-drag model diverges from a falling object that reaches a terminal speed in air.'
+    },
+    {
+        id: 'projectile',
+        title: 'Projectile Motion with Drag',
+        summary: 'Compare ideal ballistic flight to motion with air drag and reduced range.',
+        description: 'See how launch angle and drag change trajectory, peak height, and range in a real-world projectile.'
     },
     {
         id: 'thermo',
@@ -845,7 +855,6 @@ class FreeFallSimulation {
         this.body = new FreeFallBody(isReal);
         this.ensureCanvasSize();
     }
-
     ensureCanvasSize() {
         if (!this.canvas) return;
         const rect = this.canvas.getBoundingClientRect();
@@ -896,6 +905,120 @@ class FreeFallSimulation {
         ctx.font = '13px -apple-system, sans-serif';
         ctx.fillText(`v ≈ ${this.body.velocity.toFixed(2)} m/s`, 18, 22);
         ctx.fillText(`t ≈ ${this.body.time.toFixed(2)} s`, 18, 40);
+    }
+}
+
+class ProjectileMotion {
+    constructor(isReal = false) {
+        this.isReal = isReal;
+        this.x = 0;
+        this.y = 0;
+        this.vx = 0;
+        this.vy = 0;
+        this.time = 0;
+        this.maxHeight = 0;
+        this.range = 0;
+        this.landed = false;
+        this.reset();
+    }
+
+    reset() {
+        const theta = (state.projectileAngle * Math.PI) / 180;
+        this.x = 0;
+        this.y = 0;
+        this.vx = state.projectileSpeed * Math.cos(theta);
+        this.vy = state.projectileSpeed * Math.sin(theta);
+        this.time = 0;
+        this.maxHeight = 0;
+        this.range = 0;
+        this.landed = false;
+    }
+
+    update(dt) {
+        if (this.landed) return;
+
+        const dragCoeff = state.projectileDrag;
+        const vMag = Math.hypot(this.vx, this.vy) || 1;
+        const ax = this.isReal ? -(dragCoeff * this.vx * vMag) : 0;
+        const ay = this.isReal ? (-G) - (dragCoeff * this.vy * vMag) : -G;
+
+        this.vx += ax * dt;
+        this.vy += ay * dt;
+        this.x += this.vx * dt;
+        this.y += this.vy * dt;
+        this.time += dt;
+        this.maxHeight = Math.max(this.maxHeight, this.y);
+        this.range = Math.max(this.range, this.x);
+
+        if (this.y <= 0 && this.vy < 0) {
+            this.y = 0;
+            this.vy = 0;
+            this.landed = true;
+        }
+    }
+}
+
+class ProjectileSimulation {
+    constructor(canvasId, isReal = false) {
+        this.canvas = document.getElementById(canvasId);
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.isReal = isReal;
+        this.projectile = new ProjectileMotion(isReal);
+        this.ensureCanvasSize();
+    }
+
+    ensureCanvasSize() {
+        if (!this.canvas) return;
+        const rect = this.canvas.getBoundingClientRect();
+        this.canvas.width = Math.round(rect.width || this.canvas.width || 400);
+        this.canvas.height = Math.round(rect.height || this.canvas.height || 260);
+    }
+
+    reset() {
+        this.projectile.reset();
+    }
+
+    update(dt) {
+        this.projectile.update(dt);
+    }
+
+    draw() {
+        if (!this.canvas || !this.ctx) return;
+        this.ensureCanvasSize();
+        const ctx = this.ctx;
+        const w = this.canvas.width;
+        const h = this.canvas.height;
+        const padding = 20;
+        const groundY = h - 30;
+        const scaleX = Math.max(1, (w - padding * 2) / 60);
+        const scaleY = Math.max(1, (groundY - padding) / 30);
+        const x = padding + this.projectile.x * scaleX;
+        const y = groundY - this.projectile.y * scaleY;
+
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#f5f5f7';
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.fillStyle = '#e5e5ea';
+        ctx.fillRect(0, groundY, w, h - groundY);
+
+        ctx.strokeStyle = '#1d1d1f';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(padding, groundY);
+        ctx.lineTo(w - padding, groundY);
+        ctx.stroke();
+
+        ctx.fillStyle = this.isReal ? '#ff9500' : '#0071e3';
+        ctx.beginPath();
+        ctx.arc(x, y, 10, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#1d1d1f';
+        ctx.font = '13px -apple-system, sans-serif';
+        ctx.fillText(`Range ≈ ${this.projectile.range.toFixed(1)} m`, 18, 22);
+        ctx.fillText(`Height ≈ ${this.projectile.maxHeight.toFixed(1)} m`, 18, 40);
     }
 }
 
@@ -1180,6 +1303,7 @@ let idealSim, realSim, graph;
 let pendulumIdeal, pendulumReal, pendulumGraph;
 let massSpringIdeal, massSpringReal;
 let freeFallIdeal, freeFallReal;
+let projectileIdeal, projectileReal;
 let thermoIdeal, thermoReal, thermoGraph;
 let animationFrameId;
 
@@ -1223,11 +1347,13 @@ function selectModel(modelId) {
     const pendulumSection = document.getElementById('pendulumModelSection');
     const massSpringSection = document.getElementById('massSpringModelSection');
     const freeFallSection = document.getElementById('freeFallModelSection');
+    const projectileSection = document.getElementById('projectileModelSection');
     const thermoSection = document.getElementById('thermoModelSection');
     if (rampSection) rampSection.classList.toggle('hidden', modelId !== 'ramp');
     if (pendulumSection) pendulumSection.classList.toggle('hidden', modelId !== 'pendulum');
     if (massSpringSection) massSpringSection.classList.toggle('hidden', modelId !== 'mass-spring');
     if (freeFallSection) freeFallSection.classList.toggle('hidden', modelId !== 'free-fall');
+    if (projectileSection) projectileSection.classList.toggle('hidden', modelId !== 'projectile');
     if (thermoSection) thermoSection.classList.toggle('hidden', modelId !== 'thermo');
     showView('model');
 }
@@ -1253,6 +1379,8 @@ function resetAllMotion() {
     if (massSpringReal) massSpringReal.reset();
     if (freeFallIdeal) freeFallIdeal.reset();
     if (freeFallReal) freeFallReal.reset();
+    if (projectileIdeal) projectileIdeal.reset();
+    if (projectileReal) projectileReal.reset();
     if (thermoIdeal) thermoIdeal.reset();
     if (thermoReal) thermoReal.reset();
     if (thermoGraph) thermoGraph.reset();
@@ -1271,6 +1399,8 @@ function init() {
     massSpringReal = new MassSpringDamperSimulation('massSpringRealCanvas', true);
     freeFallIdeal = new FreeFallSimulation('freeFallIdealCanvas', false);
     freeFallReal = new FreeFallSimulation('freeFallRealCanvas', true);
+    projectileIdeal = new ProjectileSimulation('projectileIdealCanvas', false);
+    projectileReal = new ProjectileSimulation('projectileRealCanvas', true);
     thermoIdeal = new ThermoSimulation('thermoIdealCanvas', false);
     thermoReal = new ThermoSimulation('thermoRealCanvas', true);
     thermoGraph = new ThermoGraph('thermoGraphCanvas');
@@ -1420,6 +1550,33 @@ function setupEventListeners() {
         });
     }
 
+    const projectileSpeedSlider = document.getElementById('projectileSpeedSlider');
+    if (projectileSpeedSlider) {
+        projectileSpeedSlider.addEventListener('input', (e) => {
+            state.projectileSpeed = parseFloat(e.target.value);
+            document.getElementById('projectileSpeedValue').textContent = state.projectileSpeed.toFixed(0);
+            resetAllMotion();
+        });
+    }
+
+    const projectileAngleSlider = document.getElementById('projectileAngleSlider');
+    if (projectileAngleSlider) {
+        projectileAngleSlider.addEventListener('input', (e) => {
+            state.projectileAngle = parseFloat(e.target.value);
+            document.getElementById('projectileAngleValue').textContent = state.projectileAngle.toFixed(0);
+            resetAllMotion();
+        });
+    }
+
+    const projectileDragSlider = document.getElementById('projectileDragSlider');
+    if (projectileDragSlider) {
+        projectileDragSlider.addEventListener('input', (e) => {
+            state.projectileDrag = parseFloat(e.target.value);
+            document.getElementById('projectileDragValue').textContent = state.projectileDrag.toFixed(2);
+            resetAllMotion();
+        });
+    }
+
     const thermoTempSlider = document.getElementById('thermoTempSlider');
     if (thermoTempSlider) {
         thermoTempSlider.addEventListener('input', (e) => {
@@ -1519,6 +1676,12 @@ function updateUI() {
     if (freeFallMassText) freeFallMassText.textContent = state.freeFallMass.toFixed(1);
     const dragText = document.getElementById('dragCoeffValue');
     if (dragText) dragText.textContent = state.dragCoeff.toFixed(2);
+    const projectileSpeedText = document.getElementById('projectileSpeedValue');
+    if (projectileSpeedText) projectileSpeedText.textContent = state.projectileSpeed.toFixed(0);
+    const projectileAngleText = document.getElementById('projectileAngleValue');
+    if (projectileAngleText) projectileAngleText.textContent = state.projectileAngle.toFixed(0);
+    const projectileDragText = document.getElementById('projectileDragValue');
+    if (projectileDragText) projectileDragText.textContent = state.projectileDrag.toFixed(2);
 
     const ttv = document.getElementById('thermoTempValue');
     if (ttv) ttv.textContent = state.thermoTemperature.toFixed(0);
@@ -1550,6 +1713,14 @@ function updateUI() {
     if (freeFallReal) {
         document.getElementById('freeFallRealVelocity').textContent = freeFallReal.body.velocity.toFixed(2) + ' m/s';
         document.getElementById('freeFallRealTime').textContent = freeFallReal.body.time.toFixed(2) + ' s';
+    }
+    if (projectileIdeal) {
+        document.getElementById('projectileIdealRange').textContent = projectileIdeal.projectile.range.toFixed(1) + ' m';
+        document.getElementById('projectileIdealHeight').textContent = projectileIdeal.projectile.maxHeight.toFixed(1) + ' m';
+    }
+    if (projectileReal) {
+        document.getElementById('projectileRealRange').textContent = projectileReal.projectile.range.toFixed(1) + ' m';
+        document.getElementById('projectileRealHeight').textContent = projectileReal.projectile.maxHeight.toFixed(1) + ' m';
     }
     if (thermoIdeal) {
         document.getElementById('thermoIdealPressure').textContent = thermoIdeal.getPressure().toFixed(1) + ' kPa';
@@ -1668,6 +1839,11 @@ function animate() {
             freeFallReal.update(DT);
         }
 
+        if (projectileIdeal && projectileReal) {
+            projectileIdeal.update(DT);
+            projectileReal.update(DT);
+        }
+
         if (thermoIdeal && thermoReal) {
             thermoIdeal.update(DT);
             thermoReal.update(DT);
@@ -1685,6 +1861,8 @@ function animate() {
     if (massSpringReal) massSpringReal.draw();
     if (freeFallIdeal) freeFallIdeal.draw();
     if (freeFallReal) freeFallReal.draw();
+    if (projectileIdeal) projectileIdeal.draw();
+    if (projectileReal) projectileReal.draw();
     if (thermoIdeal) thermoIdeal.draw();
     if (thermoReal) thermoReal.draw();
     if (thermoGraph) thermoGraph.draw();
