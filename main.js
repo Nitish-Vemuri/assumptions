@@ -16,12 +16,159 @@ const state = {
     pendulumInitAngle: 15, // degrees
     pendulumDamping: 0.05,
     isPlaying: true,
+    currentView: 'catalog',
+    selectedModel: null,
     assumptions: {
         frictionless: true,
         pointMass: true,
         noAir: true
     }
 };
+
+const MODEL_CATALOG = [
+    {
+        id: 'ramp',
+        title: 'Friction on a Ramp',
+        summary: 'Textbook model vs real-world effects from friction, rotation, and air drag.',
+        description: 'Explore how surface friction, rotational inertia, and drag change the motion of a block on an incline.'
+    },
+    {
+        id: 'pendulum',
+        title: 'Simple Pendulum',
+        summary: 'Compare the small-angle approximation with nonlinear motion and damping.',
+        description: 'See how the ideal pendulum differs from a damped nonlinear pendulum under real conditions.'
+    }
+];
+
+// Assumptions catalog (simple in-memory list)
+const ASSUMPTIONS = [
+    {
+        id: 'frictionless',
+        title: 'Frictionless surface',
+        type: 'Idealization',
+        summary: 'Ignore surface friction: μ = 0 (textbook simplification).',
+        description: 'Removes both static and kinetic friction terms; objects accelerate purely under g·sin(θ).',
+        key: 'frictionless',
+        textbookValue: true,
+        realValue: false
+    },
+    {
+        id: 'pointMass',
+        title: 'Point mass (no rotation)',
+        type: 'Idealization',
+        summary: 'Neglect rotational inertia; all energy is translational.',
+        description: 'Prevents rolling/rotation effects; acceleration not reduced by rotational inertia.',
+        key: 'pointMass',
+        textbookValue: true,
+        realValue: false
+    },
+    {
+        id: 'noAir',
+        title: 'No air resistance',
+        type: 'Boundary simplification',
+        summary: 'Ignore drag forces from air (F ∝ v²).',
+        description: 'Useful at low speeds or vacuum; real-world drag slows motion at higher velocities.',
+        key: 'noAir',
+        textbookValue: true,
+        realValue: false
+    },
+    {
+        id: 'smallAnglePendulum',
+        title: 'Small-angle pendulum approximation',
+        type: 'Approximation',
+        summary: 'sin(θ) ≈ θ for small angles → linear ODE and closed-form period.',
+        description: 'Valid for θ ≲ 10–15°. Useful for analytic solutions and intuition.',
+        key: 'pendulumSmallAngle',
+        textbookValue: true,
+        realValue: false
+    }
+];
+
+function renderCatalogGrid() {
+    // Prefer the main-page grid; fall back to any remaining modal grid id
+    const grid = document.getElementById('catalogGridMain') || document.getElementById('catalogGrid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    ASSUMPTIONS.forEach(a => {
+        const card = document.createElement('div');
+        card.className = 'catalog-card';
+        card.dataset.id = a.id;
+        card.innerHTML = `
+            <h4>${a.title}</h4>
+            <p>${a.summary}</p>
+            <div class="catalog-meta">
+                <small style="color:#6e6e73">${a.type}</small>
+                <button class="apply-btn" data-id="${a.id}">Apply</button>
+            </div>
+        `;
+        card.addEventListener('click', (e) => {
+            if (e.target && e.target.classList && e.target.classList.contains('apply-btn')) return;
+            openAssumptionDetail(a.id, /* mainPage = */ true);
+        });
+        const applyBtn = card.querySelector('.apply-btn');
+        applyBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            applyAssumption(a);
+        });
+        grid.appendChild(card);
+    });
+}
+
+function openAssumptionDetail(id, mainPage = false) {
+    // Render into main page detail area if present
+    const detail = (mainPage ? document.getElementById('catalogDetailMain') : document.getElementById('catalogDetail')) || document.getElementById('catalogDetailMain');
+    const assump = ASSUMPTIONS.find(x => x.id === id);
+    if (!detail || !assump) return;
+    detail.style.display = 'block';
+    detail.innerHTML = `
+        <h3>${assump.title}</h3>
+        <p style="color:#6e6e73">${assump.type} — ${assump.summary}</p>
+        <p style="margin-top:8px">${assump.description}</p>
+        <div style="margin-top:12px;display:flex;gap:8px;align-items:center;">
+            <button id="detailApplyBtn" class="control-btn">Apply to Real World</button>
+            <button id="detailCloseBtn" class="control-btn" style="background:#6e6e73">Back to list</button>
+        </div>
+    `;
+    document.getElementById('detailApplyBtn').addEventListener('click', () => applyAssumption(assump));
+    document.getElementById('detailCloseBtn').addEventListener('click', () => { detail.style.display = 'none'; });
+    // scroll into view for main page
+    if (mainPage) detail.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function applyAssumption(assump) {
+    // Map known keys to state.assumptions where appropriate
+    if (!assump) return;
+    if (assump.key === 'frictionless' || assump.key === 'pointMass' || assump.key === 'noAir') {
+        // set the assumption to the realValue (usually false to enable effect)
+        state.assumptions[assump.key === 'pointMass' ? 'pointMass' : assump.key] = assump.realValue;
+        // Update corresponding checkbox if present
+        const cb = document.getElementById(`assumption${assump.key.charAt(0).toUpperCase() + assump.key.slice(1)}`);
+        if (cb) cb.checked = state.assumptions[assump.key === 'pointMass' ? 'pointMass' : assump.key];
+    }
+
+    // Special case: pendulum small-angle toggle — currently controlled by which sim is used; we keep for future mapping
+    // Close modal detail and refresh sims
+    const detail = document.getElementById('catalogDetail');
+    if (detail) detail.style.display = 'none';
+    renderCatalogGrid();
+    if (realSim) realSim.reset();
+    if (idealSim) idealSim.reset();
+    if (graph) graph.reset();
+    updateExplanation();
+}
+
+function openCatalog() {
+    // ensure main-page catalog is rendered and scroll to it
+    renderCatalogGrid();
+    const section = document.getElementById('catalogSection');
+    if (section) section.scrollIntoView({ behavior: 'smooth' });
+}
+
+function closeCatalog() {
+    // hide main-page detail if visible
+    const detail = document.getElementById('catalogDetailMain');
+    if (detail) detail.style.display = 'none';
+}
 
 // Block class
 class Block {
@@ -627,17 +774,81 @@ let idealSim, realSim, graph;
 let pendulumIdeal, pendulumReal, pendulumGraph;
 let animationFrameId;
 
+function renderCatalogGrid() {
+    const grid = document.getElementById('catalogGridMain');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+    MODEL_CATALOG.forEach((model) => {
+        const card = document.createElement('div');
+        card.className = 'catalog-card';
+        card.innerHTML = `
+            <h4>${model.title}</h4>
+            <p>${model.summary}</p>
+            <div class="catalog-meta">
+                <span>Model</span>
+                <button class="apply-btn" data-model="${model.id}">Open</button>
+            </div>
+        `;
+
+        card.addEventListener('click', (event) => {
+            if (event.target && event.target.closest('.apply-btn')) return;
+            selectModel(model.id);
+        });
+
+        const button = card.querySelector('.apply-btn');
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            selectModel(model.id);
+        });
+
+        grid.appendChild(card);
+    });
+}
+
+function selectModel(modelId) {
+    state.selectedModel = modelId;
+    state.currentView = 'model';
+    document.getElementById('modelTitle').textContent = MODEL_CATALOG.find(m => m.id === modelId)?.title || 'Model';
+    const rampSection = document.getElementById('rampModelSection');
+    const pendulumSection = document.getElementById('pendulumModelSection');
+    if (rampSection) rampSection.classList.toggle('hidden', modelId !== 'ramp');
+    if (pendulumSection) pendulumSection.classList.toggle('hidden', modelId !== 'pendulum');
+    showView('model');
+}
+
+function showView(viewName) {
+    const catalog = document.getElementById('catalogScreen');
+    const model = document.getElementById('modelScreen');
+
+    catalog.classList.toggle('active', viewName === 'catalog');
+    catalog.classList.toggle('hidden', viewName !== 'catalog');
+    model.classList.toggle('active', viewName === 'model');
+    model.classList.toggle('hidden', viewName !== 'model');
+}
+
+function resetAllMotion() {
+    if (idealSim) idealSim.reset();
+    if (realSim) realSim.reset();
+    if (graph) graph.reset();
+    if (pendulumIdeal) pendulumIdeal.reset();
+    if (pendulumReal) pendulumReal.reset();
+    if (pendulumGraph) pendulumGraph.reset();
+}
+
 function init() {
+    renderCatalogGrid();
+
     idealSim = new RampSimulation('idealCanvas', false);
     realSim = new RampSimulation('realCanvas', true);
     graph = new VelocityGraph('graphCanvas');
-    // Pendulum sims
     pendulumIdeal = new PendulumSimulation('pendulumIdealCanvas', false);
     pendulumReal = new PendulumSimulation('pendulumRealCanvas', true);
     pendulumGraph = new VelocityGraph('pendulumGraphCanvas');
-    
+
     setupEventListeners();
     updateUI();
+    showView('catalog');
     animate();
 }
 
@@ -645,22 +856,19 @@ function setupEventListeners() {
     // Assumptions
     document.getElementById('assumptionFrictionless').addEventListener('change', (e) => {
         state.assumptions.frictionless = e.target.checked;
-        realSim.reset();
-        graph.reset();
+        resetAllMotion();
         updateExplanation();
     });
     
     document.getElementById('assumptionPointMass').addEventListener('change', (e) => {
         state.assumptions.pointMass = e.target.checked;
-        realSim.reset();
-        graph.reset();
+        resetAllMotion();
         updateExplanation();
     });
     
     document.getElementById('assumptionNoAir').addEventListener('change', (e) => {
         state.assumptions.noAir = e.target.checked;
-        realSim.reset();
-        graph.reset();
+        resetAllMotion();
         updateExplanation();
     });
     
@@ -668,9 +876,7 @@ function setupEventListeners() {
     document.getElementById('angleSlider').addEventListener('input', (e) => {
         state.angle = parseInt(e.target.value);
         document.getElementById('angleValue').textContent = state.angle;
-        idealSim.reset();
-        realSim.reset();
-        graph.reset();
+        resetAllMotion();
         updateResults();
     });
     
@@ -679,18 +885,14 @@ function setupEventListeners() {
         document.getElementById('massValue').textContent = state.mass.toFixed(1);
         idealSim.block.mass = state.mass;
         realSim.block.mass = state.mass;
-        idealSim.reset();
-        realSim.reset();
-        graph.reset();
+        resetAllMotion();
         updateResults();
     });
     
     document.getElementById('frictionSlider').addEventListener('input', (e) => {
         state.muKinetic = parseFloat(e.target.value);
         document.getElementById('frictionValue').textContent = state.muKinetic.toFixed(2);
-        idealSim.reset();
-        realSim.reset();
-        graph.reset();
+        resetAllMotion();
         updateResults();
     });
 
@@ -757,6 +959,30 @@ function setupEventListeners() {
         if (pendulumIdeal) pendulumIdeal.reset();
         if (pendulumReal) pendulumReal.reset();
         if (pendulumGraph) pendulumGraph.reset();
+    });
+
+    const backToCatalogBtn = document.getElementById('backToCatalogBtn');
+    if (backToCatalogBtn) {
+        backToCatalogBtn.addEventListener('click', () => {
+            state.currentView = 'catalog';
+            showView('catalog');
+        });
+    }
+
+    document.querySelectorAll('.catalog-link').forEach((button) => {
+        button.addEventListener('click', () => {
+            const modelId = button.dataset.model;
+            if (modelId) selectModel(modelId);
+        });
+    });
+
+    document.querySelectorAll('.catalog-card').forEach((card) => {
+        const btn = card.querySelector('.apply-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                selectModel(btn.dataset.model);
+            });
+        }
     });
 }
 
