@@ -42,36 +42,42 @@ const state = {
 const MODEL_CATALOG = [
     {
         id: 'ramp',
+        subject: 'Mechanics',
         title: 'Friction on a Ramp',
         summary: 'Textbook model vs real-world effects from friction, rotation, and air drag.',
         description: 'Explore how surface friction, rotational inertia, and drag change the motion of a block on an incline.'
     },
     {
         id: 'pendulum',
+        subject: 'Mechanics',
         title: 'Simple Pendulum',
         summary: 'Compare the small-angle approximation with nonlinear motion and damping.',
         description: 'See how the ideal pendulum differs from a damped nonlinear pendulum under real conditions.'
     },
     {
         id: 'mass-spring',
+        subject: 'Mechanics',
         title: 'Mass–Spring–Damper',
         summary: 'Compare ideal SHM against a damped real oscillation with energy loss.',
         description: 'See how a spring without damping differs from a real system with viscous resistance and reduced amplitude.'
     },
     {
         id: 'free-fall',
+        subject: 'Mechanics',
         title: 'Free-Fall with Drag',
         summary: 'Compare constant gravity to a drag-limited real fall with terminal velocity.',
         description: 'Watch how the textbook no-drag model diverges from a falling object that reaches a terminal speed in air.'
     },
     {
         id: 'projectile',
+        subject: 'Mechanics',
         title: 'Projectile Motion with Drag',
         summary: 'Compare ideal ballistic flight to motion with air drag and reduced range.',
         description: 'See how launch angle and drag change trajectory, peak height, and range in a real-world projectile.'
     },
     {
         id: 'thermo',
+        subject: 'Thermodynamics',
         title: 'Ideal Gas Expansion',
         summary: 'Compare the ideal gas law with a real gas model including intermolecular effects.',
         description: 'See how ideal gas assumptions diverge from real gases as temperature, volume, and heat leak change.'
@@ -122,7 +128,7 @@ const ASSUMPTIONS = [
     }
 ];
 
-function renderCatalogGrid() {
+function renderAssumptionsGrid() {
     // Prefer the main-page grid; fall back to any remaining modal grid id
     const grid = document.getElementById('catalogGridMain') || document.getElementById('catalogGrid');
     if (!grid) return;
@@ -188,7 +194,7 @@ function applyAssumption(assump) {
     // Close modal detail and refresh sims
     const detail = document.getElementById('catalogDetail');
     if (detail) detail.style.display = 'none';
-    renderCatalogGrid();
+    renderAssumptionsGrid();
     if (realSim) realSim.reset();
     if (idealSim) idealSim.reset();
     if (graph) graph.reset();
@@ -197,9 +203,10 @@ function applyAssumption(assump) {
 
 function openCatalog() {
     // ensure main-page catalog is rendered and scroll to it
-    renderCatalogGrid();
+    renderSubjects();
     const section = document.getElementById('catalogSection');
     if (section) section.scrollIntoView({ behavior: 'smooth' });
+    showView('catalog');
 }
 
 function closeCatalog() {
@@ -1306,20 +1313,61 @@ let freeFallIdeal, freeFallReal;
 let projectileIdeal, projectileReal;
 let thermoIdeal, thermoReal, thermoGraph;
 let animationFrameId;
+state.catalogSubject = null;
 
-function renderCatalogGrid() {
+function renderSubjects() {
     const grid = document.getElementById('catalogGridMain');
     if (!grid) return;
-
+    // hide back button
+    const backBtn = document.getElementById('backToSubjectsBtn');
+    if (backBtn) backBtn.classList.add('hidden');
     grid.innerHTML = '';
-    MODEL_CATALOG.forEach((model) => {
+    // find unique subjects
+    const subjects = Array.from(new Set(MODEL_CATALOG.map(m => m.subject || 'Other')));
+    const container = document.createElement('div');
+    container.className = 'landing-grid';
+    subjects.forEach(subject => {
+        const card = document.createElement('div');
+        card.className = 'landing-card';
+        const count = MODEL_CATALOG.filter(m => (m.subject || 'Other') === subject).length;
+        card.innerHTML = `
+            <h3>${subject}</h3>
+            <p>${count} model${count>1?'s':''} — click to explore</p>
+            <div class="landing-actions"><button class="catalog-link" data-subject="${subject}">View ${subject}</button></div>
+        `;
+        container.appendChild(card);
+    });
+    grid.appendChild(container);
+
+    // wire buttons
+    grid.querySelectorAll('.catalog-link').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const subject = e.target.dataset.subject;
+            renderCatalogGrid(subject);
+        });
+    });
+    try { history.replaceState({ view: 'subjects' }, '', '#subjects'); } catch (e) { }
+    showView('catalog');
+}
+
+function renderCatalogGrid(subject = null) {
+    const grid = document.getElementById('catalogGridMain');
+    if (!grid) return;
+    grid.innerHTML = '';
+    state.catalogSubject = subject;
+    // show back-to-subjects button when subject is set
+    const backBtn = document.getElementById('backToSubjectsBtn');
+    if (backBtn) backBtn.classList.toggle('hidden', !subject);
+
+    const models = subject ? MODEL_CATALOG.filter(m => (m.subject||'Other') === subject) : MODEL_CATALOG;
+    models.forEach((model) => {
         const card = document.createElement('div');
         card.className = 'catalog-card';
         card.innerHTML = `
             <h4>${model.title}</h4>
             <p>${model.summary}</p>
             <div class="catalog-meta">
-                <span>Model</span>
+                <span>${model.subject || 'Model'}</span>
                 <button class="apply-btn" data-model="${model.id}">Open</button>
             </div>
         `;
@@ -1337,7 +1385,11 @@ function renderCatalogGrid() {
 
         grid.appendChild(card);
     });
+    try { history.pushState({ view: 'catalog', subject: subject }, '', subject ? ('#subject=' + encodeURIComponent(subject)) : '#catalog'); } catch (e) { }
+    showView('catalog');
 }
+
+// Note: renderCatalogGrid(subject) defined above supports subject filtering.
 
 function selectModel(modelId) {
     state.selectedModel = modelId;
@@ -1356,6 +1408,7 @@ function selectModel(modelId) {
     if (projectileSection) projectileSection.classList.toggle('hidden', modelId !== 'projectile');
     if (thermoSection) thermoSection.classList.toggle('hidden', modelId !== 'thermo');
     showView('model');
+    try { history.pushState({ view: 'model', modelId: modelId }, '', '#model=' + encodeURIComponent(modelId)); } catch (e) { }
 }
 
 function showView(viewName) {
@@ -1387,7 +1440,7 @@ function resetAllMotion() {
 }
 
 function init() {
-    renderCatalogGrid();
+    renderSubjects();
 
     idealSim = new RampSimulation('idealCanvas', false);
     realSim = new RampSimulation('realCanvas', true);
@@ -1629,10 +1682,33 @@ function setupEventListeners() {
     const backToCatalogBtn = document.getElementById('backToCatalogBtn');
     if (backToCatalogBtn) {
         backToCatalogBtn.addEventListener('click', () => {
-            state.currentView = 'catalog';
-            showView('catalog');
+            // Return to the catalog; preserve the current subject filter if any
+            renderCatalogGrid(state.catalogSubject || null);
         });
     }
+    const backToSubjectsBtn = document.getElementById('backToSubjectsBtn');
+    if (backToSubjectsBtn) {
+        backToSubjectsBtn.addEventListener('click', () => {
+            renderSubjects();
+        });
+    }
+
+    // Handle browser back/forward to keep app navigation internal
+    window.addEventListener('popstate', (event) => {
+        const st = event.state;
+        if (!st) {
+            // No state (could be initial), show subjects
+            renderSubjects();
+            return;
+        }
+        if (st.view === 'subjects') {
+            renderSubjects();
+        } else if (st.view === 'catalog') {
+            renderCatalogGrid(st.subject || null);
+        } else if (st.view === 'model') {
+            if (st.modelId) selectModel(st.modelId);
+        }
+    });
 
     document.querySelectorAll('.catalog-link').forEach((button) => {
         button.addEventListener('click', () => {
