@@ -180,6 +180,127 @@
                     </div>
                 </div>
             </div>
+
+            <div id="massSpringModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>Mass–Spring–Damper — Textbook vs Real</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Textbook (Ideal SHM)</h4>
+                            <canvas id="massSpringIdealCanvas" width="400" height="260"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Position:</span><span id="massSpringIdealPosition" class="reading-value">0.00 m</span></div>
+                                <div class="reading-item"><span class="reading-label">Velocity:</span><span id="massSpringIdealVelocity" class="reading-value">0.00 m/s</span></div>
+                            </div>
+                        </div>
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Real World (Damped Oscillation)</h4>
+                            <canvas id="massSpringRealCanvas" width="400" height="260"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Position:</span><span id="massSpringRealPosition" class="reading-value">0.00 m</span></div>
+                                <div class="reading-item"><span class="reading-label">Velocity:</span><span id="massSpringRealVelocity" class="reading-value">0.00 m/s</span></div>
+                            </div>
+                        </div>
+
+                        <div class="panel" style="width:100%;margin-top:12px;">
+                            <h3>Spring Parameters</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Mass</span><span class="parameter-value"><span id="massSpringMassValue">1.5</span> kg</span></div>
+                                <input type="range" id="massSpringMassSlider" min="0.5" max="5.0" value="1.5" step="0.5">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Spring Constant</span><span class="parameter-value"><span id="springConstValue">18</span> N/m</span></div>
+                                <input type="range" id="springConstSlider" min="5" max="40" value="18" step="1">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Damping</span><span class="parameter-value"><span id="dampingValue">0.6</span></span></div>
+                                <input type="range" id="dampingSlider" min="0" max="2.0" value="0.6" step="0.1">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="freeFallModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>Free-Fall with Drag — Textbook vs Real</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Textbook (No Air Drag)</h4>
+                            <canvas id="freeFallIdealCanvas" width="400" height="260"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Velocity:</span><span id="freeFallIdealVelocity" class="reading-value">0.00 m/s</span></div>
+                                <div class="reading-item"><span class="reading-label">Time:</span><span id="freeFallIdealTime" class="reading-value">0.00 s</span></div>
+                            </div>
+                        </div>
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Real World (Quadratic Drag)</h4>
+                            <canvas id="freeFallRealCanvas" width="400" height="260"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Velocity:</span><span id="freeFallRealVelocity" class="reading-value">0.00 m/s</span></div>
+                                <div class="reading-item"><span class="reading-label">Time:</span><span id="freeFallRealTime" class="reading-value">0.00 s</span></div>
+                            </div>
+                        </div>
+
+                        <div class="panel" style="width:100%;margin-top:12px;">
+                            <h3>Free-Fall Parameters</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Mass</span><span class="parameter-value"><span id="freeFallMassValue">2.0</span> kg</span></div>
+                                <input type="range" id="freeFallMassSlider" min="0.5" max="8.0" value="2.0" step="0.5">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Drag Coefficient</span><span class="parameter-value"><span id="dragCoeffValue">0.12</span></span></div>
+                                <input type="range" id="dragCoeffSlider" min="0.00" max="0.40" value="0.12" step="0.02">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="thermoModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>Ideal Gas Expansion — Textbook vs Real</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Textbook (Ideal Gas)</h4>
+                            <canvas id="thermoIdealCanvas" width="400" height="300"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Pressure:</span><span id="thermoIdealPressure" class="reading-value">0.00 kPa</span></div>
+                                <div class="reading-item"><span class="reading-label">Volume:</span><span id="thermoIdealVolume" class="reading-value">0.00 L</span></div>
+                            </div>
+                        </div>
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Real Gas (Van der Waals)</h4>
+                            <canvas id="thermoRealCanvas" width="400" height="300"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Pressure:</span><span id="thermoRealPressure" class="reading-value">0.00 kPa</span></div>
+                                <div class="reading-item"><span class="reading-label">Volume:</span><span id="thermoRealVolume" class="reading-value">0.00 L</span></div>
+                            </div>
+                        </div>
+
+                        <div class="panel" style="width:100%;margin-top:12px;">
+                            <h3>Thermodynamics Parameters</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Temperature</span><span class="parameter-value"><span id="thermoTempValue">300</span> K</span></div>
+                                <input type="range" id="thermoTempSlider" min="250" max="500" value="300" step="10">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Volume</span><span class="parameter-value"><span id="thermoVolumeValue">1.0</span> L</span></div>
+                                <input type="range" id="thermoVolumeSlider" min="0.5" max="3.0" value="1.0" step="0.1">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Heat Leak</span><span class="parameter-value"><span id="thermoHeatValue">0.20</span></span></div>
+                                <input type="range" id="thermoHeatSlider" min="0" max="0.8" value="0.2" step="0.05">
+                            </div>
+                        </div>
+
+                        <div style="flex-basis:100%;"></div>
+                        <div style="width:100%;margin-top:12px;">
+                            <canvas id="thermoGraphCanvas" width="900" height="120" style="width:100%;height:120px;border-radius:8px;background:#f5f5f7;border:1px solid rgba(0,0,0,0.06);"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
     </div>
 
