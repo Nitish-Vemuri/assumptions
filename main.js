@@ -29,6 +29,11 @@ const state = {
     thermoTemperature: 300,
     thermoVolume: 1.0,
     thermoHeatLoss: 0.2,
+    firstLawHeat: 120,
+    firstLawWork: 70,
+    secondLawHotTemp: 600,
+    secondLawColdTemp: 300,
+    thirdLawTemperature: 20,
     isPlaying: true,
     currentView: 'catalog',
     selectedModel: null,
@@ -81,6 +86,27 @@ const MODEL_CATALOG = [
         title: 'Ideal Gas Expansion',
         summary: 'Compare the ideal gas law with a real gas model including intermolecular effects.',
         description: 'See how ideal gas assumptions diverge from real gases as temperature, volume, and heat leak change.'
+    },
+    {
+        id: 'first-law',
+        subject: 'Thermodynamics',
+        title: 'First Law of Thermodynamics',
+        summary: 'Explore how energy is conserved as heat and work change the internal energy of a system.',
+        description: 'Analyze how energy enters and leaves a system through heat transfer and work, while internal energy changes accordingly.'
+    },
+    {
+        id: 'second-law',
+        subject: 'Thermodynamics',
+        title: 'Second Law of Thermodynamics',
+        summary: 'Compare reversible and irreversible processes and see why entropy tends to increase.',
+        description: 'Visualize why not all heat can be converted into useful work and how entropy drives real processes.'
+    },
+    {
+        id: 'third-law',
+        subject: 'Thermodynamics',
+        title: 'Third Law of Thermodynamics',
+        summary: 'Understand the approach toward absolute zero and why entropy tends to a minimum.',
+        description: 'See how lowering temperature reduces thermal motion and why reaching absolute zero is impossible in finite steps.'
     }
 ];
 
@@ -1401,12 +1427,18 @@ function selectModel(modelId) {
     const freeFallSection = document.getElementById('freeFallModelSection');
     const projectileSection = document.getElementById('projectileModelSection');
     const thermoSection = document.getElementById('thermoModelSection');
+    const firstLawSection = document.getElementById('firstLawModelSection');
+    const secondLawSection = document.getElementById('secondLawModelSection');
+    const thirdLawSection = document.getElementById('thirdLawModelSection');
     if (rampSection) rampSection.classList.toggle('hidden', modelId !== 'ramp');
     if (pendulumSection) pendulumSection.classList.toggle('hidden', modelId !== 'pendulum');
     if (massSpringSection) massSpringSection.classList.toggle('hidden', modelId !== 'mass-spring');
     if (freeFallSection) freeFallSection.classList.toggle('hidden', modelId !== 'free-fall');
     if (projectileSection) projectileSection.classList.toggle('hidden', modelId !== 'projectile');
     if (thermoSection) thermoSection.classList.toggle('hidden', modelId !== 'thermo');
+    if (firstLawSection) firstLawSection.classList.toggle('hidden', modelId !== 'first-law');
+    if (secondLawSection) secondLawSection.classList.toggle('hidden', modelId !== 'second-law');
+    if (thirdLawSection) thirdLawSection.classList.toggle('hidden', modelId !== 'third-law');
     showView('model');
     try { history.pushState({ view: 'model', modelId: modelId }, '', '#model=' + encodeURIComponent(modelId)); } catch (e) { }
 }
@@ -1656,6 +1688,46 @@ function setupEventListeners() {
             resetAllMotion();
         });
     }
+
+    const firstLawHeatSlider = document.getElementById('firstLawHeatSlider');
+    if (firstLawHeatSlider) {
+        firstLawHeatSlider.addEventListener('input', (e) => {
+            state.firstLawHeat = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
+
+    const firstLawWorkSlider = document.getElementById('firstLawWorkSlider');
+    if (firstLawWorkSlider) {
+        firstLawWorkSlider.addEventListener('input', (e) => {
+            state.firstLawWork = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
+
+    const secondLawHotSlider = document.getElementById('secondLawHotSlider');
+    if (secondLawHotSlider) {
+        secondLawHotSlider.addEventListener('input', (e) => {
+            state.secondLawHotTemp = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
+
+    const secondLawColdSlider = document.getElementById('secondLawColdSlider');
+    if (secondLawColdSlider) {
+        secondLawColdSlider.addEventListener('input', (e) => {
+            state.secondLawColdTemp = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
+
+    const thirdLawTempSlider = document.getElementById('thirdLawTempSlider');
+    if (thirdLawTempSlider) {
+        thirdLawTempSlider.addEventListener('input', (e) => {
+            state.thirdLawTemperature = parseFloat(e.target.value);
+            updateUI();
+        });
+    }
     
     // Controls
     document.getElementById('playPauseBtn').addEventListener('click', () => {
@@ -1727,6 +1799,116 @@ function setupEventListeners() {
     });
 }
 
+function drawFirstLawDiagram() {
+    const canvas = document.getElementById('firstLawCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const q = state.firstLawHeat;
+    const work = state.firstLawWork;
+    const deltaU = q - work;
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#f5f5f7';
+    ctx.fillRect(0, 0, w, h);
+
+    const maxVal = 220;
+    const drawBar = (x, y, width, height, color, label, value) => {
+        ctx.fillStyle = '#dfe1e5';
+        ctx.fillRect(x, y, width, height);
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y + (height - height * (value / maxVal)), width, height * (value / maxVal));
+        ctx.fillStyle = '#1d1d1f';
+        ctx.font = '12px sans-serif';
+        ctx.fillText(label, x, y - 8);
+        ctx.fillText(`${value} J`, x, y + height + 16);
+    };
+
+    drawBar(60, 120, 70, 80, '#0071e3', 'Q', q);
+    drawBar(170, 120, 70, 80, '#ff9500', 'W', work);
+    drawBar(280, 120, 70, 80, '#34c759', 'ΔU', Math.abs(deltaU));
+
+    ctx.fillStyle = '#1d1d1f';
+    ctx.fillText(`ΔU = ${deltaU} J`, 150, 30);
+}
+
+function drawSecondLawDiagram() {
+    const canvas = document.getElementById('secondLawCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const hot = state.secondLawHotTemp;
+    const cold = state.secondLawColdTemp;
+    const efficiency = Math.max(0, (1 - (cold / hot)) * 100);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#f5f5f7';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = '#ff3b30';
+    ctx.fillRect(60, 80, 90, 90);
+    ctx.fillStyle = '#0071e3';
+    ctx.fillRect(250, 80, 90, 90);
+
+    ctx.fillStyle = '#1d1d1f';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('Hot', 90, 70);
+    ctx.fillText(`${hot} K`, 85, 188);
+    ctx.fillText('Cold', 278, 70);
+    ctx.fillText(`${cold} K`, 275, 188);
+
+    ctx.strokeStyle = '#1d1d1f';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(150, 128);
+    ctx.lineTo(250, 128);
+    ctx.stroke();
+
+    ctx.fillStyle = '#1d1d1f';
+    ctx.fillText(`η ≈ ${efficiency.toFixed(1)}%`, 145, 42);
+}
+
+function drawThirdLawDiagram() {
+    const canvas = document.getElementById('thirdLawCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    const T = state.thirdLawTemperature;
+    const entropy = Math.max(0.01, T / 200);
+
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#f5f5f7';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.strokeStyle = '#86868b';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(40, 170);
+    ctx.lineTo(40, 30);
+    ctx.lineTo(360, 170);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#0071e3';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(40, 170);
+    ctx.lineTo(130, 155);
+    ctx.lineTo(220, 120);
+    ctx.lineTo(300, 90);
+    ctx.lineTo(350, 70);
+    ctx.stroke();
+
+    ctx.fillStyle = '#1d1d1f';
+    ctx.font = '12px sans-serif';
+    ctx.fillText('S', 24, 26);
+    ctx.fillText('T', 350, 188);
+    ctx.fillText(`T = ${T} K`, 155, 30);
+    ctx.fillText(`S ≈ ${entropy.toFixed(2)}`, 155, 52);
+}
+
 function updateUI() {
     // Sync parameter displays
     const sv = document.getElementById('staticFrictionValue');
@@ -1765,6 +1947,41 @@ function updateUI() {
     if (tvv) tvv.textContent = state.thermoVolume.toFixed(1);
     const thv = document.getElementById('thermoHeatValue');
     if (thv) thv.textContent = state.thermoHeatLoss.toFixed(2);
+
+    const firstHeatDisplay = document.getElementById('firstLawHeatDisplay');
+    if (firstHeatDisplay) firstHeatDisplay.textContent = state.firstLawHeat.toFixed(0);
+    const firstWorkDisplay = document.getElementById('firstLawWorkDisplay');
+    if (firstWorkDisplay) firstWorkDisplay.textContent = state.firstLawWork.toFixed(0);
+    const firstHeatValue = document.getElementById('firstLawHeatValue');
+    if (firstHeatValue) firstHeatValue.textContent = `${state.firstLawHeat.toFixed(0)} J`;
+    const firstWorkValue = document.getElementById('firstLawWorkValue');
+    if (firstWorkValue) firstWorkValue.textContent = `${state.firstLawWork.toFixed(0)} J`;
+    const firstDeltaUValue = document.getElementById('firstLawDeltaUValue');
+    if (firstDeltaUValue) firstDeltaUValue.textContent = `${(state.firstLawHeat - state.firstLawWork).toFixed(0)} J`;
+
+    const secondHotDisplay = document.getElementById('secondLawHotDisplay');
+    if (secondHotDisplay) secondHotDisplay.textContent = state.secondLawHotTemp.toFixed(0);
+    const secondColdDisplay = document.getElementById('secondLawColdDisplay');
+    if (secondColdDisplay) secondColdDisplay.textContent = state.secondLawColdTemp.toFixed(0);
+    const secondHotValue = document.getElementById('secondLawHotTempValue');
+    if (secondHotValue) secondHotValue.textContent = `${state.secondLawHotTemp.toFixed(0)} K`;
+    const secondColdValue = document.getElementById('secondLawColdTempValue');
+    if (secondColdValue) secondColdValue.textContent = `${state.secondLawColdTemp.toFixed(0)} K`;
+    const secondEfficiencyValue = document.getElementById('secondLawEfficiencyValue');
+    if (secondEfficiencyValue) secondEfficiencyValue.textContent = `${Math.max(0, (1 - (state.secondLawColdTemp / state.secondLawHotTemp)) * 100).toFixed(1)}%`;
+
+    const thirdTempDisplay = document.getElementById('thirdLawTempDisplay');
+    if (thirdTempDisplay) thirdTempDisplay.textContent = state.thirdLawTemperature.toFixed(0);
+    const thirdTempValue = document.getElementById('thirdLawTempValue');
+    if (thirdTempValue) thirdTempValue.textContent = `${state.thirdLawTemperature.toFixed(0)} K`;
+    const thirdEntropyValue = document.getElementById('thirdLawEntropyValue');
+    if (thirdEntropyValue) thirdEntropyValue.textContent = `${Math.max(0.01, state.thirdLawTemperature / 200).toFixed(2)}`;
+    const thirdStateValue = document.getElementById('thirdLawStateValue');
+    if (thirdStateValue) thirdStateValue.textContent = state.thirdLawTemperature <= 20 ? 'Near 0 K' : 'Above 0 K';
+
+    drawFirstLawDiagram();
+    drawSecondLawDiagram();
+    drawThirdLawDiagram();
 
     if (pendulumIdeal) {
         document.getElementById('pendulumIdealPeriod').textContent = pendulumIdeal.pendulum.getPeriodSmallAngle().toFixed(2) + ' s';

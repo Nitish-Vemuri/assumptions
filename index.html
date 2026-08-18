@@ -342,6 +342,92 @@
                     </div>
                 </div>
             </div>
+
+            <div id="firstLawModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>First Law of Thermodynamics — Energy Conservation</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Energy Balance</h4>
+                            <canvas id="firstLawCanvas" width="400" height="220"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Heat added (Q):</span><span id="firstLawHeatValue" class="reading-value">120 J</span></div>
+                                <div class="reading-item"><span class="reading-label">Work done (W):</span><span id="firstLawWorkValue" class="reading-value">70 J</span></div>
+                                <div class="reading-item"><span class="reading-label">ΔU:</span><span id="firstLawDeltaUValue" class="reading-value">50 J</span></div>
+                            </div>
+                        </div>
+                        <div class="panel" style="flex:1;min-width:260px;">
+                            <h3>Controls</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Heat added</span><span class="parameter-value"><span id="firstLawHeatDisplay">120</span> J</span></div>
+                                <input type="range" id="firstLawHeatSlider" min="0" max="200" value="120" step="5">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Work output</span><span class="parameter-value"><span id="firstLawWorkDisplay">70</span> J</span></div>
+                                <input type="range" id="firstLawWorkSlider" min="0" max="200" value="70" step="5">
+                            </div>
+                            <p><strong>Equation:</strong> ΔU = Q − W</p>
+                            <p>When heat exceeds work, the internal energy of the system rises.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="secondLawModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>Second Law of Thermodynamics — Entropy and Heat Flow</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Hot ↔ Cold Reservoirs</h4>
+                            <canvas id="secondLawCanvas" width="400" height="220"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Hot reservoir:</span><span id="secondLawHotTempValue" class="reading-value">600 K</span></div>
+                                <div class="reading-item"><span class="reading-label">Cold reservoir:</span><span id="secondLawColdTempValue" class="reading-value">300 K</span></div>
+                                <div class="reading-item"><span class="reading-label">Efficiency:</span><span id="secondLawEfficiencyValue" class="reading-value">50.0%</span></div>
+                            </div>
+                        </div>
+                        <div class="panel" style="flex:1;min-width:260px;">
+                            <h3>Controls</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Hot reservoir</span><span class="parameter-value"><span id="secondLawHotDisplay">600</span> K</span></div>
+                                <input type="range" id="secondLawHotSlider" min="300" max="900" value="600" step="25">
+                            </div>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Cold reservoir</span><span class="parameter-value"><span id="secondLawColdDisplay">300</span> K</span></div>
+                                <input type="range" id="secondLawColdSlider" min="200" max="600" value="300" step="25">
+                            </div>
+                            <p><strong>Key idea:</strong> heat naturally flows from hot to cold and causes entropy to increase.</p>
+                            <p><strong>Max ideal efficiency:</strong> η = 1 − T_c / T_h</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="thirdLawModelSection" class="model-section hidden">
+                <div class="graph-section">
+                    <h3>Third Law of Thermodynamics — Entropy at Low Temperature</h3>
+                    <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap;">
+                        <div class="canvas-wrapper" style="flex:1;min-width:320px;max-width:480px;">
+                            <h4 style="margin:0 0 8px 0;font-size:14px;font-weight:700">Entropy vs Temperature</h4>
+                            <canvas id="thirdLawCanvas" width="400" height="220"></canvas>
+                            <div class="readings" style="margin-top:12px;">
+                                <div class="reading-item"><span class="reading-label">Temperature:</span><span id="thirdLawTempValue" class="reading-value">20 K</span></div>
+                                <div class="reading-item"><span class="reading-label">Entropy:</span><span id="thirdLawEntropyValue" class="reading-value">0.10</span></div>
+                                <div class="reading-item"><span class="reading-label">State:</span><span id="thirdLawStateValue" class="reading-value">Near 0 K</span></div>
+                            </div>
+                        </div>
+                        <div class="panel" style="flex:1;min-width:260px;">
+                            <h3>Controls</h3>
+                            <div class="parameter-item">
+                                <div class="parameter-label"><span>Temperature</span><span class="parameter-value"><span id="thirdLawTempDisplay">20</span> K</span></div>
+                                <input type="range" id="thirdLawTempSlider" min="0" max="200" value="20" step="5">
+                            </div>
+                            <p><strong>Concept:</strong> as T → 0, the entropy of a perfectly ordered system approaches a minimum.</p>
+                            <p>It is not possible to reach exactly 0 K in a finite number of steps.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </section>
     </div>
 
