@@ -1,3 +1,41 @@
+# Assumption Explorer — Piston-Cylinder Prototype
+
+This repository contains a prototype interactive piston-cylinder visualizer for the Assumption Explorer project.
+
+Quick start
+
+1. From the project root run a simple HTTP server and open the demo in your browser:
+
+```powershell
+python -m http.server 8000
+# then open http://localhost:8000/cylinder-3d.html
+```
+
+2. Use the chat box on the page to apply natural-language commands. Examples:
+- `isothermal`
+- `adiabatic`
+- `from 2 L to 4 L isothermal`
+- `set volume to 1.2x`
+
+What I just committed
+
+- Rule-based natural language -> parameter parser (`parsePrompt`) for piston commands.
+- `applyParameters` and `handleAssistantPrompt` wired to update the 3D scene.
+- Process handling (`isothermal`, `adiabatic`) that updates visuals (gas color, heat arrow) and stats.
+
+Next steps (suggested)
+
+1. Add unit tests for `parsePrompt` and `applyParameters` (parser edge-cases).
+2. Add visible debugging panel showing `currentProcess` and last-parsed parameters.
+3. Improve parser: support units (m^3, cm^3), sentence variants, and clarifying follow-ups.
+4. Optional: add LLM scaffold to translate free-form prompts into a strict JSON schema (requires API keys).
+5. Deploy demo to GitHub Pages (or similar) for sharing with instructors and students.
+
+Contributing
+
+Open a PR against `main`. The prototype is intentionally isolated — keep new visualizers in standalone pages.
+
+License: MIT-style (internal prototype)
 # Assumption Explorer - Block on a Ramp
 
 An interactive educational tool that helps students understand modeling assumptions in physics by allowing them to toggle assumptions ON/OFF and see how the physical system changes.

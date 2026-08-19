@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Cylinder Explorer</title>
+  <style>
+    :root {
+      --bg: #f5f5f7;
+      --panel: rgba(255,255,255,0.78);
+      --ink: #1d1d1f;
+      --muted: #5e5e63;
+      --blue: #0071e3;
+      --orange: #ff9500;
+      --green: #34c759;
+      --line: rgba(0,0,0,0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+      background: linear-gradient(180deg, #f5f5f7 0%, #edf3ff 100%);
+      color: var(--ink);
+      overflow: hidden;
+    }
+
+    body {
+      position: relative;
+    }
+
+    #viewer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .hud {
+      position: absolute;
+      z-index: 2;
+      top: 18px;
+      left: 18px;
+      width: min(360px, calc(100vw - 36px));
+      background: var(--panel);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      padding: 18px 18px 16px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 22px;
+      letter-spacing: -0.03em;
+    }
+
+    .subtitle {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .control-block {
+      margin-top: 14px;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--blue);
+      cursor: pointer;
+    }
+
+    .stats {
+      margin-top: 14px;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .stat {
+      background: rgba(18, 18, 20, 0.03);
+      border: 1px solid rgba(0,0,0,0.05);
+      border-radius: 12px;
+      padding: 10px 8px;
+    }
+
+    .stat-name {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .stat-value {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+
+    .legend {
+      margin-top: 14px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0,0,0,0.02);
+      border-radius: 999px;
+      padding: 6px 8px;
+    }
+
+    .swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .state-pill {
+      margin-top: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(0, 113, 227, 0.08);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .state-pill::before {
+      content: "";
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--blue);
+      display: inline-block;
+    }
+
+    .chat-box {
+      position: absolute;
+      right: 18px;
+      bottom: 18px;
+      width: min(320px, calc(100vw - 26px));
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      padding: 12px;
+      z-index: 3;
+    }
+
+    .chat-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .chat-window {
+      max-height: 180px;
+      overflow: auto;
+      padding: 8px;
+      border-radius: 12px;
+      background: rgba(17,17,19,0.02);
+      border: 1px solid rgba(0,0,0,0.04);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .chat-message {
+      margin-bottom: 8px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      max-width: 90%;
+    }
+
+    .chat-message.user {
+      margin-left: auto;
+      background: rgba(0, 113, 227, 0.1);
+      color: var(--ink);
+    }
+
+    .chat-message.bot {
+      background: rgba(51, 51, 51, 0.04);
+      color: var(--ink);
+    }
+
+    .chat-input-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .chat-input {
+      flex: 1;
+      border: 1px solid rgba(0,0,0,0.08);
+      border-radius: 12px;
+      background: white;
+      color: var(--ink);
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+
+    .chat-send {
+      border: none;
+      border-radius: 12px;
+      background: var(--blue);
+      color: white;
+      font-weight: 700;
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    @media (max-width: 640px) {
+      .hud {
+        width: min(310px, calc(100vw - 20px));
+        left: 10px;
+        top: 10px;
+        padding: 14px 14px 12px;
+      }
+
+      h1 { font-size: 20px; }
+      .stats { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="viewer"></div>
+
+  <div class="hud">
+    <h1>Piston-cylinder model</h1>
+    <p class="subtitle">Drag to orbit the system. Use the slider to change the gas volume and watch the piston move.</p>
+
+    <div class="control-block">
+      <div class="label-row">
+        <span>Gas volume</span>
+        <strong id="volumeLabel">1.00x</strong>
+      </div>
+      <input id="volumeSlider" type="range" min="0.3" max="1.7" step="0.01" value="1" />
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-name">Volume</div>
+        <div class="stat-value" id="volumeStat">1.00</div>
+      </div>
+      <div class="stat">
+        <div class="stat-name">Pressure</div>
+        <div class="stat-value" id="pressureStat">1.00</div>
+      </div>
+      <div class="stat">
+        <div class="stat-name">Temp</div>
+        <div class="stat-value" id="tempStat">300 K</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span class="dot"><span class="swatch" style="background: var(--orange);"></span> Pressure</span>
+      <span class="dot"><span class="swatch" style="background: var(--blue);"></span> Displacement</span>
+      <span class="dot"><span class="swatch" style="background: var(--green);"></span> Heat</span>
+    </div>
+
+    <div id="statePill" class="state-pill">Piston at rest</div>
+  </div>
+
+  <div class="chat-box">
+    <div class="chat-header">
+      <span>Assumption tutor</span>
+      <span style="color: var(--green);">● Live</span>
+    </div>
+    <div class="chat-window" id="chatWindow">
+      <div class="chat-message bot">This prototype currently focuses on the piston-cylinder model. Try asking about compression, expansion, pressure, or volume.</div>
+    </div>
+    <div class="chat-input-row">
+      <input id="chatInput" class="chat-input" type="text" placeholder="Ask about the cylinder..." />
+      <button id="chatSend" class="chat-send">Send</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="cylinder-3d.js"></script>
+</body>
+</html>
