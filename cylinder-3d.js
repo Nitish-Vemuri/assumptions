@@ -9,6 +9,11 @@ const chatInput = document.getElementById('chatInput');
 const chatSend = document.getElementById('chatSend');
 
 const viewer = document.getElementById('viewer');
+const dbgProcess = document.getElementById('dbgProcess');
+const dbgAction = document.getElementById('dbgAction');
+const dbgRatio = document.getElementById('dbgRatio');
+const dbgConfidence = document.getElementById('dbgConfidence');
+const dbgRaw = document.getElementById('dbgRaw');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf3f5f8);
@@ -130,6 +135,23 @@ const chatMessage = (role, text) => {
 
 // current process state (null | 'isothermal' | 'adiabatic')
 let currentProcess = null;
+let lastParse = null;
+
+const updateDebugDisplay = () => {
+  if (!dbgProcess) return;
+  dbgProcess.textContent = currentProcess || '-';
+  if (lastParse) {
+    dbgAction.textContent = lastParse.action || '-';
+    dbgRatio.textContent = (typeof lastParse.ratio === 'number') ? lastParse.ratio.toFixed(3) : '-';
+    dbgConfidence.textContent = (typeof lastParse.confidence === 'number') ? lastParse.confidence.toFixed(2) : '-';
+    dbgRaw.textContent = lastParse.raw || '-';
+  } else {
+    dbgAction.textContent = '-';
+    dbgRatio.textContent = '-';
+    dbgConfidence.textContent = '-';
+    dbgRaw.textContent = '-';
+  }
+};
 
 const handleAssistantPrompt = (raw) => {
   const prompt = String(raw || '').trim();
@@ -142,7 +164,7 @@ const handleAssistantPrompt = (raw) => {
   const wantsBuild = buildTriggers.test(lower);
 
   if (wantsBuild) {
-    const parsed = parsePrompt(prompt);
+    const parsed = parsePromptWithDebug(prompt);
     if (parsed && parsed.action === 'apply') {
       applyParameters(parsed);
       const desc = [];
@@ -157,8 +179,11 @@ const handleAssistantPrompt = (raw) => {
       chatMessage('bot', `Set process: ${parsed.process}. I didn't change volume — try "from 2 L to 5 L ${parsed.process}" to apply a volume change.`);
       return;
     }
-
-    // if parser returned but low confidence or couldn't figure parameters
+    // if parser returned but low confidence or couldn't figure parameters, ask for clarification when confidence is low
+    if (parsed && parsed.confidence < 0.6) {
+      chatMessage('bot', 'I detected an intent but I\'m not confident. Do you mean expand, compress, or set an absolute volume? Example: "from 2 L to 5 L isothermally".');
+      return;
+    }
     chatMessage('bot', 'I understood you want the model updated, but I could not extract clear parameters. Try: "Expand from 2 L to 5 L isothermally" or "Set volume to 1.2x".');
     return;
   }
@@ -166,7 +191,7 @@ const handleAssistantPrompt = (raw) => {
   // Recognize process-only prompts like "isothermal" or "adiabatic"
   const processTriggers = /(isothermal|adiabatic|constant temperature|no heat exchange|adiabat)/i;
   if (processTriggers.test(lower)) {
-    const parsed = parsePrompt(prompt);
+    const parsed = parsePromptWithDebug(prompt);
     if (parsed && parsed.process) {
       // use applyParameters so visuals and internal state update consistently
       applyParameters(parsed);
@@ -184,76 +209,18 @@ const handleAssistantPrompt = (raw) => {
   }
 };
 
-// Rule-based natural-language -> parameter parser for the piston template
-const parsePrompt = (text) => {
-  const s = String(text || '').toLowerCase();
-  const out = { action: 'none', ratio: null, process: null, confidence: 0 };
+// Parser is provided by parser.js (portable module). Use it via parsePrompt(text, { volume })
 
-  // detect process type
-  if (s.match(/isothermal|constant temperature/)) out.process = 'isothermal';
-  if (s.match(/adiabatic|no heat exchange|adiabat/)) out.process = 'adiabatic';
-
-  // detect explicit volume range e.g. "from 2 L to 5 L"
-  const range = s.match(/from\s*(\d+\.?\d*)\s*(l|litre|liter)?\s*to\s*(\d+\.?\d*)\s*(l|litre|liter)?/);
-  if (range) {
-    const v1 = parseFloat(range[1]);
-    const v2 = parseFloat(range[3]);
-    if (v1 > 0 && v2 > 0) {
-      out.ratio = v2 / v1; // multiplier relative to initial
-      out.action = 'apply';
-      out.confidence = 0.9;
-      return out;
-    }
-  }
-
-  // detect absolute "set volume to 3 L" -> map to multiplier against default
-  const setVol = s.match(/set\s+volume\s+to\s*(\d+\.?\d*)\s*(l|litre|liter)?/);
-  if (setVol) {
-    const v = parseFloat(setVol[1]);
-    if (v > 0) {
-      const defaultV = 3.0; // arbitrary baseline used by UI for mapping
-      out.ratio = Math.max(0.3, Math.min(1.7, v / defaultV));
-      out.action = 'apply';
-      out.confidence = 0.7;
-      return out;
-    }
-  }
-
-  // detect percent or multiplier expressions
-  const percent = s.match(/(\d+)%/);
-  if (percent) {
-    const p = Math.max(0, Math.min(100, parseFloat(percent[1])));
-    // map 0-100% linearly into our slider range 0.3-1.7
-    out.ratio = 0.3 + (p / 100) * (1.7 - 0.3);
-    out.action = 'apply';
-    out.confidence = 0.65;
-    return out;
-  }
-
-  const mult = s.match(/(\d+\.?\d*)\s*x/);
-  if (mult) {
-    out.ratio = Math.max(0.3, Math.min(1.7, parseFloat(mult[1])));
-    out.action = 'apply';
-    out.confidence = 0.7;
-    return out;
-  }
-
-  // detect simple verbs "expand" or "compress"
-  if (s.match(/expand|increases|increasing/)) {
-    out.ratio = Math.min(1.7, Number(volumeSlider.value) + 0.25);
-    out.action = 'apply';
-    out.confidence = 0.5;
-    return out;
-  }
-
-  if (s.match(/compress|compresses|compression|press/)) {
-    out.ratio = Math.max(0.3, Number(volumeSlider.value) - 0.25);
-    out.action = 'apply';
-    out.confidence = 0.5;
-    return out;
-  }
-
-  return out;
+// wrapper to record lastParse and update debug display
+// wrapper to call portable parser with context and record debug info
+const parsePromptWithDebug = (text) => {
+  // parsePrompt is provided by parser.js and expects (text, context)
+  const ctx = { volume: Number(volumeSlider.value), defaultVolumeLiters: 3.0 };
+  const res = (typeof parsePrompt === 'function') ? parsePrompt(text, ctx) : { action: 'none', confidence: 0 };
+  res.raw = String(text || '');
+  lastParse = res;
+  updateDebugDisplay();
+  return res;
 };
 
 const applyParameters = (params) => {
@@ -275,6 +242,11 @@ const applyParameters = (params) => {
       heatArrow.visible = false;
     }
     statePill.textContent = currentProcess + ' (' + (Number(volumeSlider.value).toFixed(2)) + 'x)';
+  }
+  // mark lastParse as applied and update debug view
+  if (lastParse) {
+    lastParse.applied = true;
+    updateDebugDisplay();
   }
   return true;
 };

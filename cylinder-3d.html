@@ -315,8 +315,19 @@
     </div>
   </div>
 
+  <!-- Debug panel for parser state -->
+  <div id="debugPanel" style="position: absolute; left: 18px; bottom: 18px; z-index:4; background: rgba(255,255,255,0.9); border:1px solid rgba(0,0,0,0.06); padding:10px 12px; border-radius:12px; font-size:12px; max-width:320px;">
+    <div style="font-weight:700; margin-bottom:6px;">Debug — Parser state</div>
+    <div>Current process: <span id="dbgProcess">-</span></div>
+    <div>Last action: <span id="dbgAction">-</span></div>
+    <div>Last ratio: <span id="dbgRatio">-</span></div>
+    <div>Confidence: <span id="dbgConfidence">-</span></div>
+    <div style="margin-top:6px; color:#666; word-break:break-all;">Last raw: <span id="dbgRaw">-</span></div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="parser.js"></script>
   <script src="cylinder-3d.js"></script>
 </body>
 </html>

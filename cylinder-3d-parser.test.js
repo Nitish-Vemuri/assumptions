@@ -1,0 +1,36 @@
+const assert = require('assert');
+const parser = require('./parser');
+
+function almostEqual(a, b, eps = 1e-6) {
+  return Math.abs(a - b) < eps;
+}
+
+// Tests
+(() => {
+  console.log('Running parser tests...');
+
+  let r;
+
+  r = parser.parsePrompt('from 2 L to 4 L');
+  assert.strictEqual(r.action, 'apply');
+  assert.ok(almostEqual(r.ratio, 2.0));
+
+  r = parser.parsePrompt('set volume to 1.2x');
+  assert.strictEqual(r.action, 'apply');
+
+  r = parser.parsePrompt('50%');
+  assert.strictEqual(r.action, 'apply');
+
+  r = parser.parsePrompt('isothermal');
+  assert.strictEqual(r.process, 'isothermal');
+
+  r = parser.parsePrompt('from 0.002 m^3 to 0.004 m^3 isothermal');
+  // 0.002 m^3 = 2 L, 0.004 m^3 = 4 L -> ratio 2
+  assert.strictEqual(r.action, 'apply');
+  assert.ok(almostEqual(r.ratio, 2.0));
+
+  r = parser.parsePrompt('compress');
+  assert.strictEqual(r.action, 'apply');
+
+  console.log('All parser tests passed.');
+})();
