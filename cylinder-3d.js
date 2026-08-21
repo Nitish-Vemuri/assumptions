@@ -7,6 +7,8 @@ const statePill = document.getElementById('statePill');
 const chatWindow = document.getElementById('chatWindow');
 const chatInput = document.getElementById('chatInput');
 const chatSend = document.getElementById('chatSend');
+const checkpointList = document.getElementById('checkpointList');
+const tutorBox = document.getElementById('tutorBox');
 
 const viewer = document.getElementById('viewer');
 const dbgProcess = document.getElementById('dbgProcess');
@@ -137,6 +139,52 @@ const chatMessage = (role, text) => {
 let currentProcess = null;
 let lastParse = null;
 
+const checkpoints = [
+  { id: 1, text: 'Define the system: Identify the gas, piston, and boundaries.' },
+  { id: 2, text: 'Set the process: ask for isothermal, adiabatic, compression, or expansion.' },
+  { id: 3, text: 'Compare assumptions: ideal-gas vs real-gas, and how the model changes.' },
+  { id: 4, text: 'Reflect: What happens to pressure, volume, and temperature?' }
+];
+
+const tutorDefinitions = {
+  isothermal: {
+    title: 'Isothermal',
+    text: 'Definition: temperature remains constant during the process. In a piston-cylinder, the gas can expand or compress while the temperature stays fixed, so pressure adjusts according to the gas law.'
+  },
+  adiabatic: {
+    title: 'Adiabatic',
+    text: 'Definition: no heat is exchanged with the surroundings. The gas temperature changes because work is done on or by the gas, even though no heat enters or leaves.'
+  },
+  compression: {
+    title: 'Compression',
+    text: 'Definition: the piston moves inward, decreasing volume and increasing pressure. In the model, the gas volume shrinks and the piston moves down.'
+  },
+  expansion: {
+    title: 'Expansion',
+    text: 'Definition: the piston moves outward and the gas volume increases. Pressure falls as the gas expands.'
+  },
+  default: {
+    title: 'System assumption',
+    text: 'Definition: an assumption is a simplification we make to model the real world. Here we compare idealized textbook conditions with more realistic behavior.'
+  }
+};
+
+const renderCheckpoints = () => {
+  if (!checkpointList) return;
+  checkpointList.innerHTML = checkpoints.map((item) => `
+    <li class="checkpoint-item">
+      <span class="checkpoint-badge">${item.id}</span>
+      <span class="checkpoint-copy">${item.text}</span>
+    </li>
+  `).join('');
+};
+
+const setTutorExplanation = (key) => {
+  if (!tutorBox) return;
+  const content = tutorDefinitions[key] || tutorDefinitions.default;
+  tutorBox.innerHTML = `<strong>${content.title}</strong>${content.text}`;
+};
+
 const updateDebugDisplay = () => {
   if (!dbgProcess) return;
   dbgProcess.textContent = currentProcess || '-';
@@ -193,6 +241,7 @@ const handleAssistantPrompt = (raw) => {
   if (processTriggers.test(lower)) {
     const parsed = parsePromptWithDebug(prompt);
     if (parsed && parsed.process) {
+      setTutorExplanation(parsed.process);
       // use applyParameters so visuals and internal state update consistently
       applyParameters(parsed);
       chatMessage('bot', `Set process: ${parsed.process}. I didn't change volume — try adding a range, e.g. "from 2 L to 5 L ${parsed.process}".`);
@@ -203,8 +252,12 @@ const handleAssistantPrompt = (raw) => {
   const supported = /cylinder|piston|pressure|volume|expand|compress|thermo|heat|gas|work/.test(lower);
 
   if (supported) {
-    chatMessage('bot', 'This prototype currently focuses on a single piston-cylinder model. In the current setup, pushing the piston compresses the gas, raises pressure, and reduces volume; pulling it out expands the gas and lowers pressure. Try asking me to build a case: "Expand from 2 L to 5 L isothermally".');
+    const msg = 'This prototype currently focuses on a single piston-cylinder model. In the current setup, pushing the piston compresses the gas, raises pressure, and reduces volume; pulling it out expands the gas and lowers pressure. Try asking me to build a case: "Expand from 2 L to 5 L isothermally".';
+    const processKey = currentProcess || (lower.includes('isothermal') ? 'isothermal' : lower.includes('adiabatic') ? 'adiabatic' : lower.includes('compress') ? 'compression' : lower.includes('expand') ? 'expansion' : null);
+    if (processKey) setTutorExplanation(processKey);
+    chatMessage('bot', msg);
   } else {
+    setTutorExplanation('default');
     chatMessage('bot', 'We are still building support for that prompt. For now, this prototype is limited to the piston-cylinder example and thermodynamic basics around compression, expansion, pressure, and volume.');
   }
 };
@@ -233,6 +286,7 @@ const applyParameters = (params) => {
   // if process provided, update state pill text
   if (params.process) {
     currentProcess = params.process;
+    setTutorExplanation(currentProcess);
     // update visuals related to process immediately
     if (currentProcess === 'isothermal') {
       gasMaterial.color.setHex(0x4ea4ff);
@@ -330,5 +384,12 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+renderCheckpoints();
+setTutorExplanation('default');
 updateModel();
+const initialPrompt = new URLSearchParams(window.location.search).get('prompt');
+if (initialPrompt) {
+  chatMessage('user', initialPrompt);
+  handleAssistantPrompt(initialPrompt);
+}
 animate();

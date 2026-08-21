@@ -161,6 +161,88 @@
       display: inline-block;
     }
 
+    .guide-panel {
+      position: absolute;
+      left: 18px;
+      bottom: 18px;
+      width: min(320px, calc(100vw - 36px));
+      background: rgba(255,255,255,0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      padding: 14px 14px 12px;
+      z-index: 3;
+    }
+
+    .guide-title {
+      margin: 0 0 10px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .checkpoint-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .checkpoint-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      border: 1px solid rgba(0,0,0,0.04);
+      border-radius: 12px;
+      background: rgba(17,17,19,0.02);
+      padding: 8px 10px;
+    }
+
+    .checkpoint-badge {
+      min-width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 113, 227, 0.08);
+      color: var(--blue);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .checkpoint-copy {
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--ink);
+    }
+
+    .tutor-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(0, 113, 227, 0.05);
+      border: 1px solid rgba(0, 113, 227, 0.09);
+      color: var(--ink);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tutor-box strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
     .chat-box {
       position: absolute;
       right: 18px;
@@ -299,6 +381,15 @@
     </div>
 
     <div id="statePill" class="state-pill">Piston at rest</div>
+  </div>
+
+  <div class="guide-panel">
+    <h2 class="guide-title">Guided prompts & checkpoints</h2>
+    <ul class="checkpoint-list" id="checkpointList"></ul>
+    <div class="tutor-box" id="tutorBox">
+      <strong>AI tutor</strong>
+      A thermodynamic process is a path that describes how pressure, volume, and temperature change. Example: isothermal means temperature stays constant while the piston moves.
+    </div>
   </div>
 
   <div class="chat-box">

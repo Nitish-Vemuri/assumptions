@@ -1,4 +1,4 @@
-const { parseQuestion, getExplanation } = require('./question-visualizer.js');
+const { parseQuestion, getExplanation, getMatchedModelUrl } = require('./question-visualizer.js');
 
 function assertEqual(actual, expected, label) {
   if (actual !== expected) {
@@ -30,5 +30,16 @@ assertEqual(entropy.target, 'entropy', 'entropy target');
 
 const explanation = getExplanation({ template: 'isothermal' });
 assertIncludes(explanation.formula, 'ln', 'isothermal formula includes natural log');
+
+const collision = parseQuestion('Two carts collide elastically. Find their final velocities using momentum conservation.');
+assertEqual(collision.template, 'collisions', 'collision detection');
+assertIncludes(getExplanation(collision).formula, 'sum(p', 'collision formula');
+
+const orbit = parseQuestion('Find the orbital speed of a satellite in a circular orbit around Earth.');
+assertEqual(orbit.template, 'gravitation', 'gravitation detection');
+
+assertIncludes(getMatchedModelUrl(iso, 'isothermal from 2 L to 5 L'), 'cylinder-3d.html', 'isothermal route');
+assertIncludes(getMatchedModelUrl(engine, 'heat engine'), 'model=second-law', 'engine route');
+assertIncludes(getMatchedModelUrl(collision, 'collision'), 'model=collisions', 'collision route');
 
 console.log('question visualizer tests passed');

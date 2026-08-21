@@ -46,6 +46,13 @@ const state = {
 
 const MODEL_CATALOG = [
     {
+        id: 'question-visualizer',
+        subject: 'Thermodynamics',
+        title: 'Analyze a Thermodynamics Question',
+        summary: 'Paste a textbook question to identify its process, assumptions, and a suitable visual model.',
+        description: 'Start with a question, then continue into a matched visualizer.'
+    },
+    {
         id: 'ramp',
         subject: 'Mechanics',
         title: 'Friction on a Ramp',
@@ -79,6 +86,46 @@ const MODEL_CATALOG = [
         title: 'Projectile Motion with Drag',
         summary: 'Compare ideal ballistic flight to motion with air drag and reduced range.',
         description: 'See how launch angle and drag change trajectory, peak height, and range in a real-world projectile.'
+    },
+    {
+        id: 'kinematics-1d', subject: 'Mechanics', title: 'One-Dimensional Motion',
+        summary: 'Connect position, velocity, and acceleration in a straight-line motion model.',
+        description: 'Use the constant-acceleration equations and see the resulting motion diagram.'
+    },
+    {
+        id: 'work-energy', subject: 'Mechanics', title: 'Work and Energy',
+        summary: 'Track kinetic, gravitational potential, and frictional energy for a moving object.',
+        description: 'Explore the work-energy theorem and conservation of mechanical energy.'
+    },
+    {
+        id: 'collisions', subject: 'Mechanics', title: 'Momentum and Collisions',
+        summary: 'Compare elastic and perfectly inelastic one-dimensional collisions.',
+        description: 'Test conservation of momentum and the change in kinetic energy.'
+    },
+    {
+        id: 'circular-motion', subject: 'Mechanics', title: 'Uniform Circular Motion',
+        summary: 'Relate speed and radius to centripetal acceleration and force.',
+        description: 'Explore the inward net force required to maintain circular motion.'
+    },
+    {
+        id: 'rotation', subject: 'Mechanics', title: 'Torque and Rotational Motion',
+        summary: 'Connect torque, moment of inertia, angular acceleration, and rotational energy.',
+        description: 'Apply the fixed-axis rotation relationships to a rotating disk.'
+    },
+    {
+        id: 'statics', subject: 'Mechanics', title: 'Static Equilibrium',
+        summary: 'Balance forces and torques on a simply supported beam.',
+        description: 'See how support reactions change as a load moves along the beam.'
+    },
+    {
+        id: 'gravitation', subject: 'Mechanics', title: 'Gravitation and Orbits',
+        summary: 'Explore circular-orbit speed and period around a central body.',
+        description: 'Use Newtonian gravitation and circular-motion relationships.'
+    },
+    {
+        id: 'fluids', subject: 'Mechanics', title: 'Fluid Mechanics',
+        summary: 'Explore hydrostatic pressure, continuity, and ideal fluid flow.',
+        description: 'Compare pressure with depth and flow rate through a pipe.'
     },
     {
         id: 'thermo',
@@ -1418,6 +1465,22 @@ function renderCatalogGrid(subject = null) {
 // Note: renderCatalogGrid(subject) defined above supports subject filtering.
 
 function selectModel(modelId) {
+    if (modelId === 'question-visualizer') {
+        window.location.href = 'question-visualizer.html';
+        return;
+    }
+    if (window.mechanicsLabs && window.mechanicsLabs.has(modelId)) {
+        state.selectedModel = modelId;
+        state.currentView = 'model';
+        document.getElementById('modelTitle').textContent = MODEL_CATALOG.find(m => m.id === modelId)?.title || 'Model';
+        document.querySelectorAll('.model-section').forEach((section) => section.classList.add('hidden'));
+        window.mechanicsLabs.render(modelId, document.getElementById('modelDetailBody'));
+        showView('model');
+        try { history.pushState({ view: 'model', modelId: modelId }, '', '#model=' + encodeURIComponent(modelId)); } catch (e) { }
+        return;
+    }
+    const labHost = document.getElementById('modelDetailBody');
+    if (labHost) labHost.innerHTML = '';
     state.selectedModel = modelId;
     state.currentView = 'model';
     document.getElementById('modelTitle').textContent = MODEL_CATALOG.find(m => m.id === modelId)?.title || 'Model';
@@ -1492,7 +1555,12 @@ function init() {
 
     setupEventListeners();
     updateUI();
-    showView('catalog');
+    const requestedModel = new URLSearchParams(window.location.search).get('model');
+    if (requestedModel && MODEL_CATALOG.some((model) => model.id === requestedModel)) {
+        selectModel(requestedModel);
+    } else {
+        showView('catalog');
+    }
     animate();
 }
 

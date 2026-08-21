@@ -11,7 +11,7 @@ const hasAny = (text, words) => words.some((word) => text.includes(word));
 const parseQuestion = (text = '') => {
   const lower = String(text).toLowerCase();
 
-  let process = 'general thermodynamic process';
+  let process = 'general physics problem';
   let template = 'general';
 
   if (hasAny(lower, ['isothermal', 'constant temperature'])) {
@@ -32,12 +32,45 @@ const parseQuestion = (text = '') => {
   } else if (hasAny(lower, ['entropy', 'second law', 'reversible process'])) {
     process = 'entropy and second-law process';
     template = 'entropy';
+  } else if (hasAny(lower, ['incline', 'ramp', 'friction', 'coefficient of friction'])) {
+    process = 'Newton’s laws with friction'; template = 'ramp';
+  } else if (hasAny(lower, ['projectile', 'launch angle', 'range of the projectile'])) {
+    process = 'two-dimensional projectile motion'; template = 'projectile';
+  } else if (hasAny(lower, ['free fall', 'falling object', 'terminal velocity'])) {
+    process = 'free-fall motion'; template = 'free-fall';
+  } else if (lower.includes('pendulum')) {
+    process = 'pendulum oscillation'; template = 'pendulum';
+  } else if (hasAny(lower, ['spring', 'simple harmonic motion', 'oscillation'])) {
+    process = 'mass-spring oscillation'; template = 'mass-spring';
+  } else if (hasAny(lower, ['collision', 'momentum', 'impulse'])) {
+    process = 'momentum and collision problem'; template = 'collisions';
+  } else if (hasAny(lower, ['centripetal', 'circular motion'])) {
+    process = 'uniform circular motion'; template = 'circular-motion';
+  } else if (hasAny(lower, ['torque', 'rotational inertia', 'angular acceleration'])) {
+    process = 'fixed-axis rotational motion'; template = 'rotation';
+  } else if (hasAny(lower, ['static equilibrium', 'equilibrium', 'beam', 'lever'])) {
+    process = 'static equilibrium'; template = 'statics';
+  } else if (hasAny(lower, ['orbit', 'orbital', 'gravitation', 'gravity'])) {
+    process = 'gravitation and orbital motion'; template = 'gravitation';
+  } else if (hasAny(lower, ['fluid', 'buoyancy', 'bernoulli', 'hydrostatic'])) {
+    process = 'fluid mechanics'; template = 'fluids';
+  } else if (hasAny(lower, ['position', 'velocity', 'acceleration', 'constant acceleration'])) {
+    process = 'one-dimensional kinematics'; template = 'kinematics-1d';
+  } else if (hasAny(lower, ['work', 'kinetic energy', 'potential energy', 'conservation of energy'])) {
+    process = 'work and energy'; template = 'work-energy';
   }
 
-  let system = 'closed gas system';
+  let system = template === 'general' ? 'physical system' : 'closed gas system';
   if (lower.includes('piston')) system = 'piston-cylinder system';
   if (lower.includes('engine')) system = 'heat engine';
   if (lower.includes('reservoir')) system = 'thermal reservoir system';
+  if (template === 'ramp') system = 'block and inclined surface';
+  if (template === 'collisions') system = 'two-object collision system';
+  if (template === 'circular-motion') system = 'object in circular motion';
+  if (template === 'rotation') system = 'rigid body about a fixed axis';
+  if (template === 'statics') system = 'rigid body in equilibrium';
+  if (template === 'gravitation') system = 'central body and orbiting object';
+  if (template === 'fluids') system = 'fluid system';
 
   let target = 'work, pressure, or energy';
   if (hasAny(lower, ['efficiency', 'maximum efficiency', 'η'])) {
@@ -66,6 +99,13 @@ const parseQuestion = (text = '') => {
   if (template === 'isobaric') assumptions.push('pressure remains constant');
   if (template === 'isochoric') assumptions.push('volume remains constant');
   if (template === 'entropy') assumptions.push('reversible or near-equilibrium path');
+  if (template === 'ramp') assumptions.push('uniform gravitational field');
+  if (template === 'collisions') assumptions.push('negligible external impulse');
+  if (template === 'circular-motion') assumptions.push('constant speed and radius');
+  if (template === 'rotation') assumptions.push('fixed rotation axis');
+  if (template === 'statics') assumptions.push('net force and net torque are zero');
+  if (template === 'gravitation') assumptions.push('Newtonian two-body approximation');
+  if (template === 'fluids') assumptions.push('steady incompressible flow');
 
   return { process, system, target, variables, assumptions, template };
 };
@@ -115,10 +155,48 @@ const getExplanation = (info = {}) => {
     };
   }
 
+  const mechanicsExplanations = {
+    ramp: ['a = g(sin theta - mu_k cos theta)', 'Resolve gravity parallel to the ramp, then subtract kinetic friction when the block is sliding.'],
+    projectile: ['x = v0 cos(theta)t; y = v0 sin(theta)t - 1/2 gt^2', 'Horizontal and vertical motion are analyzed separately when air resistance is neglected.'],
+    'free-fall': ['v = v0 + gt', 'Near Earth, gravity gives a constant downward acceleration in the ideal model.'],
+    pendulum: ['T = 2pi sqrt(L/g)', 'For small angles, a pendulum undergoes approximately simple harmonic motion.'],
+    'mass-spring': ['F = -kx; T = 2pi sqrt(m/k)', 'A spring’s restoring force is proportional to its displacement from equilibrium.'],
+    collisions: ['sum(p_initial) = sum(p_final)', 'Momentum is conserved for an isolated system during a collision.'],
+    'circular-motion': ['a_c = v^2/r; F_c = mv^2/r', 'The required net force points inward, toward the center of the circular path.'],
+    rotation: ['tau_net = I alpha', 'Net torque produces angular acceleration, just as net force produces linear acceleration.'],
+    statics: ['sum(F) = 0; sum(tau) = 0', 'A body in static equilibrium has no linear or angular acceleration.'],
+    gravitation: ['F = GMm/r^2', 'Newtonian gravity provides the inward force for an ideal circular orbit.'],
+    fluids: ['P_g = rho gh; Q = Av', 'Fluid pressure increases with depth; continuity relates area and flow speed.'],
+    'kinematics-1d': ['x = x0 + v0t + 1/2 at^2', 'For constant acceleration, position and velocity change predictably with time.'],
+    'work-energy': ['W_net = Delta K', 'Net work changes kinetic energy; conservative forces can be represented by potential energy.']
+  };
+  if (mechanicsExplanations[template]) {
+    return { formula: mechanicsExplanations[template][0], explanation: mechanicsExplanations[template][1] };
+  }
+
   return {
     formula: 'ΔU = Q − W',
     explanation: 'This is a general thermodynamics problem. The central idea is the balance between heat added to the system, work done by the system, and the resulting change in internal energy.'
   };
+};
+
+const getMatchedModelUrl = (info = {}, question = '') => {
+  const prompt = encodeURIComponent(question);
+  if (info.template === 'isothermal' || info.template === 'adiabatic') {
+    return `cylinder-3d.html?prompt=${prompt}`;
+  }
+
+  const modelMap = {
+    engine: 'second-law',
+    entropy: 'second-law',
+    isobaric: 'thermo',
+    isochoric: 'thermo',
+    ramp: 'ramp', projectile: 'projectile', 'free-fall': 'free-fall', pendulum: 'pendulum', 'mass-spring': 'mass-spring',
+    collisions: 'collisions', 'circular-motion': 'circular-motion', rotation: 'rotation', statics: 'statics',
+    gravitation: 'gravitation', fluids: 'fluids', 'kinematics-1d': 'kinematics-1d', 'work-energy': 'work-energy',
+    general: 'thermo'
+  };
+  return `index.html?model=${modelMap[info.template] || 'thermo'}`;
 };
 
 const renderVisualization = (info = {}) => {
@@ -253,7 +331,7 @@ const analyzeQuestion = () => {
 
   resultPanel.classList.remove('hidden');
   renderVisualization(info);
-  return { info, explanation };
+  return { info, explanation, matchedModelUrl: getMatchedModelUrl(info, text) };
 };
 
 const initializeVisualizer = () => {
@@ -263,6 +341,16 @@ const initializeVisualizer = () => {
   if (!analyzeBtn) return;
 
   analyzeBtn.addEventListener('click', analyzeQuestion);
+
+  const openMatchedModelBtn = document.getElementById('openMatchedModelBtn');
+  if (openMatchedModelBtn) {
+    openMatchedModelBtn.addEventListener('click', () => {
+      const input = document.getElementById('questionInput');
+      if (!input || !input.value.trim()) return;
+      const info = parseQuestion(input.value);
+      window.location.href = getMatchedModelUrl(info, input.value.trim());
+    });
+  }
 
   const sampleBtn = document.getElementById('sampleBtn');
   if (sampleBtn) {
@@ -293,6 +381,7 @@ const questionVisualizer = {
   sampleQuestions,
   parseQuestion,
   getExplanation,
+  getMatchedModelUrl,
   renderVisualization,
   analyzeQuestion,
   initializeVisualizer

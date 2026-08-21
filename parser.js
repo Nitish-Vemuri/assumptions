@@ -33,8 +33,18 @@
       }
     }
 
+    // A multiplier must be handled before an absolute volume, otherwise "1.2x"
+    // is mistakenly interpreted as 1.2 L.
+    const multiplier = s.match(/(?:set\s+volume\s+to\s*)?(\d+\.?\d*)\s*x\b/);
+    if (multiplier) {
+      out.ratio = Math.max(0.3, Math.min(1.7, parseFloat(multiplier[1])));
+      out.action = 'apply';
+      out.confidence = 0.75;
+      return out;
+    }
+
     // detect absolute "set volume to 3 L" -> map to multiplier against default
-    const setVol = s.match(/set\s+volume\s+to\s*(\d+\.?\d*)\s*(m\^?3|cm\^?3|l|litre|liter)?/);
+    const setVol = s.match(/set\s+volume\s+to\s*(\d+\.?\d*)\s*(m\^?3|cm\^?3|l|litre|liter)\b/);
     if (setVol) {
       const vLiters = toLiters(parseFloat(setVol[1]), setVol[2]);
       if (vLiters > 0) {
@@ -53,15 +63,6 @@
       out.ratio = 0.3 + (p / 100) * (1.7 - 0.3);
       out.action = 'apply';
       out.confidence = 0.7;
-      return out;
-    }
-
-    // multiplier like 1.2x
-    const mult = s.match(/(\d+\.?\d*)\s*x/);
-    if (mult) {
-      out.ratio = Math.max(0.3, Math.min(1.7, parseFloat(mult[1])));
-      out.action = 'apply';
-      out.confidence = 0.75;
       return out;
     }
 

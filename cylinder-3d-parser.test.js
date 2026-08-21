@@ -17,6 +17,11 @@ function almostEqual(a, b, eps = 1e-6) {
 
   r = parser.parsePrompt('set volume to 1.2x');
   assert.strictEqual(r.action, 'apply');
+  assert.ok(almostEqual(r.ratio, 1.2));
+
+  r = parser.parsePrompt('set volume to 1.2 L');
+  assert.strictEqual(r.action, 'apply');
+  assert.ok(almostEqual(r.ratio, 0.4));
 
   r = parser.parsePrompt('50%');
   assert.strictEqual(r.action, 'apply');
