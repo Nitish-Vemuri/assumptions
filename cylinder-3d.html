@@ -161,6 +161,29 @@
       display: inline-block;
     }
 
+    .problem-panel {
+      position: absolute;
+      z-index: 3;
+      top: 18px;
+      right: 18px;
+      width: min(360px, calc(100vw - 36px));
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255,255,255,0.84);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.08);
+      backdrop-filter: blur(14px);
+    }
+
+    .problem-title { margin: 0 0 8px; font-size: 14px; }
+    .problem-copy { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.45; }
+    .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .problem-field { font-size: 11px; color: var(--muted); }
+    .problem-field input { width: 100%; margin-top: 4px; padding: 7px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; font: inherit; color: var(--ink); }
+    .work-result { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,113,227,0.07); font-size: 13px; }
+    .pv-canvas { width: 100%; height: 120px; margin-top: 10px; border-radius: 10px; background: #f7f7f8; }
+    .quasi-toggle { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; }
+
     .guide-panel {
       position: absolute;
       left: 18px;
@@ -356,7 +379,7 @@
         <span>Gas volume</span>
         <strong id="volumeLabel">1.00x</strong>
       </div>
-      <input id="volumeSlider" type="range" min="0.3" max="1.7" step="0.01" value="1" />
+      <input id="volumeSlider" type="range" min="0.3" max="2.5" step="0.01" value="1" />
     </div>
 
     <div class="stats">
@@ -381,6 +404,20 @@
     </div>
 
     <div id="statePill" class="state-pill">Piston at rest</div>
+  </div>
+
+  <div class="problem-panel">
+    <h2 class="problem-title">Isothermal problem model</h2>
+    <p class="problem-copy">For an ideal gas at constant temperature, pressure and volume are coupled: P·V = constant.</p>
+    <div class="problem-grid">
+      <label class="problem-field">Initial pressure P₁ (kPa)<input id="initialPressureInput" type="number" min="1" value="800" step="10"></label>
+      <label class="problem-field">Initial volume V₁ (m³)<input id="initialVolumeInput" type="number" min="0.001" value="0.015" step="0.001"></label>
+      <label class="problem-field">Final volume V₂ (m³)<input id="finalVolumeInput" type="number" min="0.001" value="0.030" step="0.001"></label>
+      <label class="problem-field">Temperature (K)<input id="temperatureInput" type="number" min="1" value="300" step="5" title="For a fixed amount of gas, changing temperature updates the initial pressure."></label>
+    </div>
+    <label class="quasi-toggle"><input id="quasiStaticToggle" type="checkbox" checked> Quasi-static (P<sub>gas</sub> ≈ P<sub>external</sub>)</label>
+    <div id="workResult" class="work-result">Work output to V₂: —</div>
+    <canvas id="pvCanvas" class="pv-canvas" aria-label="Pressure-volume diagram"></canvas>
   </div>
 
   <div class="guide-panel">

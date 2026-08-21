@@ -37,5 +37,14 @@ function almostEqual(a, b, eps = 1e-6) {
   r = parser.parsePrompt('compress');
   assert.strictEqual(r.action, 'apply');
 
+  r = parser.parsePrompt('A frictionless piston-cylinder device contains a gas initially at 0.8 MPa and 0.015 m³. It expands quasi-statically at constant temperature to a final volume of 0.030 m³. The work output will be ____ kJ.');
+  assert.strictEqual(r.process, 'isothermal');
+  assert.ok(almostEqual(r.problem.initialPressureKPa, 800));
+  assert.ok(almostEqual(r.problem.initialVolumeM3, 0.015));
+  assert.ok(almostEqual(r.problem.finalVolumeM3, 0.030));
+  assert.strictEqual(r.problem.quasiStatic, true);
+  const workKJ = r.problem.initialPressureKPa * r.problem.initialVolumeM3 * Math.log(r.problem.finalVolumeM3 / r.problem.initialVolumeM3);
+  assert.ok(almostEqual(workKJ, 8.317766));
+
   console.log('All parser tests passed.');
 })();

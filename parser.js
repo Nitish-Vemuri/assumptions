@@ -5,16 +5,54 @@
     if (!unit) return value; // assume liters
     unit = unit.replace(/\s+/g, '').toLowerCase();
     if (unit === 'l' || unit === 'liter' || unit === 'litre') return value;
-    if (unit === 'm3' || unit === 'm^3') return value * 1000; // m^3 -> liters
-    if (unit === 'cm3' || unit === 'cm^3') return value * 0.001; // cm^3 -> liters
+    if (unit === 'm3' || unit === 'm^3' || unit === 'm³') return value * 1000; // m^3 -> liters
+    if (unit === 'cm3' || unit === 'cm^3' || unit === 'cm³') return value * 0.001; // cm^3 -> liters
     return value; // fallback
   };
+
+  const toCubicMeters = (value, unit) => {
+    const liters = toLiters(value, unit);
+    return liters / 1000;
+  };
+
+  function parseThermoProblem(text) {
+    const s = String(text || '').toLowerCase();
+    const isothermal = /isothermal|constant temperature/.test(s);
+    const quasiStatic = /quasi[\s-]*static|quasistatic/.test(s);
+    const pressure = s.match(/(\d+(?:\.\d+)?)\s*(mpa|kpa|pa)\b/);
+    const volumeMatches = [...s.matchAll(/(\d+(?:\.\d+)?)\s*(m\^?3|m³|cm\^?3|cm³|l|litre|liter)(?=$|[^a-z0-9])/g)];
+    const temperature = s.match(/(\d+(?:\.\d+)?)\s*k\b/);
+    if (!isothermal || !pressure || volumeMatches.length < 2) return null;
+
+    const pressureValue = parseFloat(pressure[1]);
+    const pressureKPa = pressure[2] === 'mpa' ? pressureValue * 1000 : pressure[2] === 'pa' ? pressureValue / 1000 : pressureValue;
+    const initialVolumeM3 = toCubicMeters(parseFloat(volumeMatches[0][1]), volumeMatches[0][2]);
+    const finalVolumeM3 = toCubicMeters(parseFloat(volumeMatches[1][1]), volumeMatches[1][2]);
+    if (!(pressureKPa > 0 && initialVolumeM3 > 0 && finalVolumeM3 > 0)) return null;
+    return {
+      initialPressureKPa: pressureKPa,
+      initialVolumeM3,
+      finalVolumeM3,
+      temperatureK: temperature ? parseFloat(temperature[1]) : 300,
+      quasiStatic,
+      process: 'isothermal'
+    };
+  }
 
   function parsePrompt(text, context) {
     const ctx = context || {};
     const volContext = typeof ctx.volume === 'number' ? ctx.volume : 1.0;
     const s = String(text || '').toLowerCase();
     const out = { action: 'none', ratio: null, process: null, confidence: 0 };
+    const thermoProblem = parseThermoProblem(text);
+    if (thermoProblem) {
+      out.problem = thermoProblem;
+      out.process = 'isothermal';
+      out.ratio = thermoProblem.finalVolumeM3 / thermoProblem.initialVolumeM3;
+      out.action = 'apply';
+      out.confidence = 0.99;
+      return out;
+    }
 
     // detect process type
     if (s.match(/isothermal|constant temperature/)) out.process = 'isothermal';
@@ -86,7 +124,7 @@
 
   // export
   if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { parsePrompt };
+    module.exports = { parsePrompt, parseThermoProblem };
   } else {
     root.parsePrompt = parsePrompt;
   }
