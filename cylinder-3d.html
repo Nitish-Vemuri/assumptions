@@ -183,6 +183,14 @@
     .work-result { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,113,227,0.07); font-size: 13px; }
     .pv-canvas { width: 100%; height: 120px; margin-top: 10px; border-radius: 10px; background: #f7f7f8; }
     .quasi-toggle { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; }
+    .question-context { margin: 0 0 10px; padding: 9px 10px; border-radius: 10px; background: rgba(0,0,0,0.035); color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .process-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-top: 10px; }
+    .process-controls button { border: 0; border-radius: 9px; padding: 8px; cursor: pointer; font-weight: 700; background: #0071e3; color: #fff; }
+    .process-controls button.secondary { background: #e5e5ea; color: #1d1d1f; }
+    .process-stage { margin-top: 9px; font-size: 12px; font-weight: 700; color: #0057c2; }
+    .scene-key { position: absolute; z-index: 2; right: 395px; top: 18px; max-width: 185px; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,0.78); border: 1px solid var(--line); font-size: 11px; line-height: 1.45; color: var(--muted); }
+    .scene-key strong { color: var(--ink); display: block; margin-bottom: 4px; }
+    #debugPanel { display: none; }
 
     .guide-panel {
       position: absolute;
@@ -364,6 +372,9 @@
 
       h1 { font-size: 20px; }
       .stats { grid-template-columns: 1fr 1fr; }
+      .problem-panel { top: auto; bottom: 10px; right: 10px; max-height: 52vh; overflow: auto; }
+      .scene-key, .guide-panel { display: none; }
+      .chat-box { display: none; }
     }
   </style>
 </head>
@@ -408,6 +419,7 @@
 
   <div class="problem-panel">
     <h2 class="problem-title">Isothermal problem model</h2>
+    <p id="questionContext" class="question-context">Load a piston-cylinder question to create a matched process.</p>
     <p class="problem-copy">For an ideal gas at constant temperature, pressure and volume are coupled: P·V = constant.</p>
     <div class="problem-grid">
       <label class="problem-field">Initial pressure P₁ (kPa)<input id="initialPressureInput" type="number" min="1" value="800" step="10"></label>
@@ -416,8 +428,22 @@
       <label class="problem-field">Temperature (K)<input id="temperatureInput" type="number" min="1" value="300" step="5" title="For a fixed amount of gas, changing temperature updates the initial pressure."></label>
     </div>
     <label class="quasi-toggle"><input id="quasiStaticToggle" type="checkbox" checked> Quasi-static (P<sub>gas</sub> ≈ P<sub>external</sub>)</label>
+    <div class="process-controls">
+      <button id="playProcessBtn" type="button">Play process</button>
+      <button id="stepProcessBtn" class="secondary" type="button">Step forward</button>
+      <button id="resetProcessBtn" class="secondary" type="button">Reset state</button>
+      <button id="predictBtn" class="secondary" type="button">Make a prediction</button>
+    </div>
+    <div id="processStage" class="process-stage">Initial state: inspect P₁, V₁, and T.</div>
     <div id="workResult" class="work-result">Work output to V₂: —</div>
     <canvas id="pvCanvas" class="pv-canvas" aria-label="Pressure-volume diagram"></canvas>
+  </div>
+
+  <div class="scene-key">
+    <strong>What to watch</strong>
+    Orange arrow: pressure force<br>
+    Blue arrow: piston displacement<br>
+    Green arrow: heat entering to keep T constant
   </div>
 
   <div class="guide-panel">

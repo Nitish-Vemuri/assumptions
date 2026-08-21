@@ -16,6 +16,12 @@ const temperatureInput = document.getElementById('temperatureInput');
 const quasiStaticToggle = document.getElementById('quasiStaticToggle');
 const workResult = document.getElementById('workResult');
 const pvCanvas = document.getElementById('pvCanvas');
+const questionContext = document.getElementById('questionContext');
+const playProcessBtn = document.getElementById('playProcessBtn');
+const stepProcessBtn = document.getElementById('stepProcessBtn');
+const resetProcessBtn = document.getElementById('resetProcessBtn');
+const predictBtn = document.getElementById('predictBtn');
+const processStage = document.getElementById('processStage');
 
 const viewer = document.getElementById('viewer');
 const dbgProcess = document.getElementById('dbgProcess');
@@ -153,6 +159,8 @@ let problemState = {
   quasiStatic: true,
   gasConstantKPaM3PerK: 0.04
 };
+let processRunning = false;
+let lastAnimationTime = null;
 
 const finite = (value, fallback) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
 
@@ -177,6 +185,13 @@ const readProblemInputs = (changedInput) => {
   } else {
     problemState.gasConstantKPaM3PerK = problemState.initialPressureKPa * problemState.initialVolumeM3 / problemState.temperatureK;
   }
+  updateVolumeRange();
+};
+
+const updateVolumeRange = () => {
+  const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+  volumeSlider.min = Math.min(0.3, targetRatio * 0.8).toFixed(2);
+  volumeSlider.max = Math.max(2.5, targetRatio * 1.1).toFixed(2);
 };
 
 const drawPV = (ratio) => {
@@ -207,23 +222,39 @@ const drawPV = (ratio) => {
   ctx.beginPath(); ctx.arc(x(currentV), y(p1 / ratio), 4, 0, Math.PI * 2); ctx.fillStyle = '#ff9500'; ctx.fill();
 };
 
-const configureProblem = (problem) => {
+const configureProblem = (problem, sourceText = '') => {
   if (!problem) return;
   problemState = { ...problemState, ...problem };
   problemState.gasConstantKPaM3PerK = problemState.initialPressureKPa * problemState.initialVolumeM3 / problemState.temperatureK;
   currentProcess = 'isothermal';
   syncProblemInputs();
   const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+  updateVolumeRange();
   volumeSlider.value = Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), targetRatio));
+  if (sourceText && questionContext) questionContext.textContent = `Matched question: ${sourceText}`;
   setTutorExplanation('isothermal');
   updateModel();
 };
 
+const setProcessStage = (ratio) => {
+  const target = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+  const progress = target === 1 ? 1 : (ratio - 1) / (target - 1);
+  if (progress <= 0.02) {
+    processStage.textContent = 'Initial state: inspect P₁, V₁, and T before the piston moves.';
+  } else if (progress >= 0.98) {
+    processStage.textContent = 'Final state: compare P₂ and V₂; read the completed work from the shaded PV area.';
+  } else if (problemState.quasiStatic) {
+    processStage.textContent = 'Quasi-static step: the gas and external pressures stay nearly balanced.';
+  } else {
+    processStage.textContent = 'Non-quasi-static comparison: a finite pressure difference drives the piston.';
+  }
+};
+
 const checkpoints = [
-  { id: 1, text: 'Define the system: Identify the gas, piston, and boundaries.' },
-  { id: 2, text: 'Set the process: ask for isothermal, adiabatic, compression, or expansion.' },
-  { id: 3, text: 'Compare assumptions: ideal-gas vs real-gas, and how the model changes.' },
-  { id: 4, text: 'Reflect: What happens to pressure, volume, and temperature?' }
+  { id: 1, text: 'Predict: as the gas expands at constant temperature, will pressure rise or fall?' },
+  { id: 2, text: 'Observe: play or step the process and follow the orange point on the PV diagram.' },
+  { id: 3, text: 'Explain: heat enters while the gas does work, keeping the ideal-gas temperature constant.' },
+  { id: 4, text: 'Compare: turn off quasi-static behavior to see why the reversible PV area no longer applies.' }
 ];
 
 const tutorDefinitions = {
@@ -364,7 +395,7 @@ const parsePromptWithDebug = (text) => {
 const applyParameters = (params) => {
   if (!params || typeof params !== 'object') return false;
   if (params.problem) {
-    configureProblem(params.problem);
+    configureProblem(params.problem, lastParse && lastParse.raw);
     if (lastParse) { lastParse.applied = true; updateDebugDisplay(); }
     return true;
   }
@@ -434,7 +465,14 @@ const updateModel = () => {
   displacementArrow.setLength(2.2 + (ratio - 1) * 1.8, 0.85, 0.4);
 
   const actualVolume = problemState.initialVolumeM3 * ratio;
-  const workKJ = isProblemIsothermal ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(ratio) : 0;
+  const externalPressure = problemState.quasiStatic
+    ? pressure
+    : problemState.initialPressureKPa * problemState.initialVolumeM3 / problemState.finalVolumeM3;
+  const workKJ = isProblemIsothermal
+    ? (problemState.quasiStatic
+      ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(ratio)
+      : externalPressure * Math.max(0, actualVolume - problemState.initialVolumeM3))
+    : 0;
   volumeLabel.textContent = isProblemIsothermal ? `${actualVolume.toFixed(4)} m³` : `${ratio.toFixed(2)}x`;
   volumeStat.textContent = isProblemIsothermal ? `${actualVolume.toFixed(4)} m³` : `${ratio.toFixed(2)}`;
   pressureStat.textContent = isProblemIsothermal ? `${pressure.toFixed(0)} kPa` : `${pressure.toFixed(2)}`;
@@ -450,14 +488,50 @@ const updateModel = () => {
   statePill.style.setProperty('--blue', compressed ? '#ff9500' : '#34c759');
   statePill.style.color = '#1d1d1f';
   if (isProblemIsothermal && workResult) {
-    const targetWork = problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(problemState.finalVolumeM3 / problemState.initialVolumeM3);
-    const equilibrium = problemState.quasiStatic ? 'Pgas ≈ Pexternal at every step.' : 'Finite pressure difference: non-quasi-static path.';
-    workResult.innerHTML = `<strong>Work output:</strong> ${workKJ.toFixed(2)} kJ now; ${targetWork.toFixed(2)} kJ at V₂.<br><span style="color:#5e5e63">${equilibrium}</span>`;
+    const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+    const targetWork = problemState.quasiStatic
+      ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(targetRatio)
+      : externalPressure * (problemState.finalVolumeM3 - problemState.initialVolumeM3);
+    const equilibrium = problemState.quasiStatic
+      ? `Pgas = Pexternal = ${pressure.toFixed(0)} kPa in this equilibrium step.`
+      : `Pgas = ${pressure.toFixed(0)} kPa; Pexternal = ${externalPressure.toFixed(0)} kPa (illustrative constant-load comparison).`;
+    const heatText = problemState.quasiStatic ? `For this ideal-gas isothermal path, Q_in = W_out = ${workKJ.toFixed(2)} kJ.` : 'Temperature is held fixed for comparison; the reversible PV-area work rule is not used.';
+    workResult.innerHTML = `<strong>Work output:</strong> ${workKJ.toFixed(2)} kJ now; ${targetWork.toFixed(2)} kJ at V₂.<br><span style="color:#5e5e63">${equilibrium}<br>${heatText}</span>`;
   }
+  heatArrow.visible = isProblemIsothermal;
+  heatArrow.setLength(1.2 + Math.min(1.5, Math.abs(workKJ) * 0.12), 0.55, 0.28);
+  setProcessStage(ratio);
   drawPV(ratio);
 };
 
 volumeSlider.addEventListener('input', updateModel);
+
+playProcessBtn.addEventListener('click', () => {
+  const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+  if (Number(volumeSlider.value) >= targetRatio - 0.005) volumeSlider.value = 1;
+  processRunning = !processRunning;
+  playProcessBtn.textContent = processRunning ? 'Pause process' : 'Play process';
+  updateModel();
+});
+
+stepProcessBtn.addEventListener('click', () => {
+  const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+  const direction = targetRatio >= 1 ? 1 : -1;
+  volumeSlider.value = Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), Number(volumeSlider.value) + direction * 0.1));
+  updateModel();
+});
+
+resetProcessBtn.addEventListener('click', () => {
+  processRunning = false;
+  playProcessBtn.textContent = 'Play process';
+  volumeSlider.value = 1;
+  updateModel();
+});
+
+predictBtn.addEventListener('click', () => {
+  chatMessage('bot', 'Prediction checkpoint: before pressing Play, decide whether pressure rises or falls as the piston moves outward at constant temperature. Then use the PV point to check your reasoning.');
+  chatInput.focus();
+});
 
 [initialPressureInput, initialVolumeInput, finalVolumeInput, temperatureInput, quasiStaticToggle].forEach((input) => {
   input.addEventListener('input', () => { readProblemInputs(input); currentProcess = 'isothermal'; updateModel(); });
@@ -480,6 +554,19 @@ chatInput.addEventListener('keydown', (event) => {
 
 function animate() {
   requestAnimationFrame(animate);
+  const now = performance.now();
+  if (processRunning) {
+    const elapsed = lastAnimationTime ? (now - lastAnimationTime) / 1000 : 0;
+    const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+    const direction = targetRatio >= 1 ? 1 : -1;
+    const speed = problemState.quasiStatic ? 0.18 : 0.7;
+    const next = Number(volumeSlider.value) + direction * speed * elapsed;
+    const finished = direction > 0 ? next >= targetRatio : next <= targetRatio;
+    volumeSlider.value = finished ? targetRatio : Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), next));
+    updateModel();
+    if (finished) { processRunning = false; playProcessBtn.textContent = 'Replay process'; }
+  }
+  lastAnimationTime = now;
   controls.update();
   renderer.render(scene, camera);
 }
