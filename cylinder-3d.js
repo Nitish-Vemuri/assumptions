@@ -20,8 +20,8 @@ const questionContext = document.getElementById('questionContext');
 const playProcessBtn = document.getElementById('playProcessBtn');
 const stepProcessBtn = document.getElementById('stepProcessBtn');
 const resetProcessBtn = document.getElementById('resetProcessBtn');
-const predictBtn = document.getElementById('predictBtn');
 const processStage = document.getElementById('processStage');
+const problemTitle = document.getElementById('problemTitle');
 
 const viewer = document.getElementById('viewer');
 const dbgProcess = document.getElementById('dbgProcess');
@@ -31,8 +31,8 @@ const dbgConfidence = document.getElementById('dbgConfidence');
 const dbgRaw = document.getElementById('dbgRaw');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf3f5f8);
-scene.fog = new THREE.Fog(0xf3f5f8, 12, 28);
+scene.background = new THREE.Color(0xfafdff);
+scene.fog = new THREE.Fog(0xfafdff, 14, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -64,20 +64,20 @@ const cylinderGroup = new THREE.Group();
 scene.add(cylinderGroup);
 
 const wallMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0xcfe5ff,
+  color: 0x4f8ab8,
   roughness: 0.38,
   metalness: 0.12,
   side: THREE.DoubleSide,
   transparent: true,
-  opacity: 0.9
+  opacity: 0.42
 });
 
 const gasMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x4ea4ff,
+  color: 0x1463a5,
   roughness: 0.18,
   metalness: 0.1,
   transparent: true,
-  opacity: 0.7
+  opacity: 0.62
 });
 
 const pistonMaterial = new THREE.MeshPhysicalMaterial({
@@ -127,14 +127,17 @@ rod.rotation.x = Math.PI / 2;
 rod.position.y = 0.2;
 cylinderGroup.add(rod);
 
-const pressureArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.4, 0), 3.5, 0xff9500, 0.9, 0.45);
+const pressureArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-3.25, -2.5, 0.4), 3.5, 0xff5a36, 1.2, 0.6);
 scene.add(pressureArrow);
 
-const heatArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 0, 1), new THREE.Vector3(-1.8, 0.8, 0), 2.4, 0x34c759, 0.75, 0.35);
+const heatArrow = new THREE.ArrowHelper(new THREE.Vector3(1, 0, 0), new THREE.Vector3(-3.6, 0.8, 0), 2.4, 0x008a3f, 1.05, 0.5);
 scene.add(heatArrow);
 
-const displacementArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -2.2, 0), 2.8, 0x0071e3, 0.85, 0.4);
+const displacementArrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, -2.2, 0), 2.8, 0x005bd1, 1.1, 0.55);
 scene.add(displacementArrow);
+
+const externalPressureArrow = new THREE.ArrowHelper(new THREE.Vector3(0, -1, 0), new THREE.Vector3(2.2, 4.1, 0), 1.3, 0x6f2dbd, 1.05, 0.5);
+scene.add(externalPressureArrow);
 
 const axis = new THREE.AxesHelper(3.5);
 axis.position.set(0, -4.4, 0);
@@ -157,7 +160,9 @@ let problemState = {
   finalVolumeM3: 0.030,
   temperatureK: 300,
   quasiStatic: true,
-  gasConstantKPaM3PerK: 0.04
+  quasiStaticInferred: false,
+  gasConstantKPaM3PerK: 0.04,
+  process: 'isothermal'
 };
 let processRunning = false;
 let lastAnimationTime = null;
@@ -215,28 +220,58 @@ const drawPV = (ratio) => {
   ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom); ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
   ctx.fillStyle = '#6e6e73'; ctx.font = '10px system-ui'; ctx.fillText('P', 9, 17); ctx.fillText('V', width - 12, height - 8);
   const currentV = v1 * ratio;
-  ctx.beginPath();
-  for (let i = 0; i <= 60; i++) { const v = v1 + (maxV - v1) * i / 60; const px = x(v), py = y(p1 * v1 / v); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
-  ctx.strokeStyle = '#0071e3'; ctx.lineWidth = 2.5; ctx.stroke();
-  if (currentV >= v1) { ctx.beginPath(); ctx.moveTo(x(v1), height - pad.bottom); for (let i=0;i<=40;i++) { const v=v1+(currentV-v1)*i/40; ctx.lineTo(x(v), y(p1*v1/v)); } ctx.lineTo(x(currentV), height-pad.bottom); ctx.closePath(); ctx.fillStyle='rgba(0,113,227,0.14)'; ctx.fill(); }
-  ctx.beginPath(); ctx.arc(x(currentV), y(p1 / ratio), 4, 0, Math.PI * 2); ctx.fillStyle = '#ff9500'; ctx.fill();
+  const exponent = problemState.process === 'adiabatic' ? 1.4 : problemState.process === 'polytropic' ? 1.3 : problemState.process === 'isobaric' ? 0 : 1;
+  ctx.strokeStyle = '#005bd1'; ctx.lineWidth = 2.5;
+  if (problemState.process === 'isochoric') {
+    ctx.beginPath(); ctx.moveTo(x(v1), pad.top); ctx.lineTo(x(v1), height - pad.bottom); ctx.stroke();
+    ctx.fillStyle = '#6e6e73'; ctx.fillText('V = constant', x(v1) + 5, pad.top + 12);
+  } else {
+    ctx.beginPath();
+    for (let i = 0; i <= 60; i++) { const v = v1 + (maxV - v1) * i / 60; const px = x(v), py = y(p1 * (v1 / v) ** exponent); i ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+    ctx.stroke();
+    if (currentV >= v1 && problemState.quasiStatic) { ctx.beginPath(); ctx.moveTo(x(v1), height - pad.bottom); for (let i=0;i<=40;i++) { const v=v1+(currentV-v1)*i/40; ctx.lineTo(x(v), y(p1*(v1/v)**exponent)); } ctx.lineTo(x(currentV), height-pad.bottom); ctx.closePath(); ctx.fillStyle='rgba(0,91,209,0.16)'; ctx.fill(); }
+  }
+  ctx.beginPath(); ctx.arc(x(currentV), y(p1 * ratio ** -exponent), 4.5, 0, Math.PI * 2); ctx.fillStyle = '#ff5a36'; ctx.fill();
 };
 
 const configureProblem = (problem, sourceText = '') => {
   if (!problem) return;
   problemState = { ...problemState, ...problem };
+  // Do not silently substitute an irreversible constant-load path for a
+  // textbook problem whose work is determined from its isothermal end states.
+  if (problemState.quasiStaticInferred) problemState.quasiStatic = true;
   problemState.gasConstantKPaM3PerK = problemState.initialPressureKPa * problemState.initialVolumeM3 / problemState.temperatureK;
-  currentProcess = 'isothermal';
+  problemState.process = problem.process || 'isothermal';
+  currentProcess = problemState.process;
   syncProblemInputs();
+  quasiStaticToggle.disabled = problemState.quasiStaticInferred;
   const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
   updateVolumeRange();
   volumeSlider.value = Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), targetRatio));
+  volumeSlider.disabled = problemState.process === 'isochoric';
+  if (volumeSlider.disabled) volumeSlider.value = 1;
+  updateProcessControls();
   if (sourceText && questionContext) questionContext.textContent = `Matched question: ${sourceText}`;
-  setTutorExplanation('isothermal');
+  if (problemTitle) problemTitle.textContent = `${problemState.process[0].toUpperCase() + problemState.process.slice(1)} piston-cylinder model`;
+  setTutorExplanation(problemState.process);
   updateModel();
 };
 
+const updateProcessControls = () => {
+  const locked = problemState.process === 'isochoric';
+  if (locked) processRunning = false;
+  playProcessBtn.disabled = locked;
+  stepProcessBtn.disabled = locked;
+  playProcessBtn.textContent = locked ? 'Piston locked' : 'Play process';
+  playProcessBtn.style.opacity = locked ? '0.55' : '1';
+  stepProcessBtn.style.opacity = locked ? '0.55' : '1';
+};
+
 const setProcessStage = (ratio) => {
+  if (problemState.process === 'isochoric') {
+    processStage.textContent = 'Isochoric constraint: the piston is locked, volume is fixed, and boundary work is zero.';
+    return;
+  }
   const target = problemState.finalVolumeM3 / problemState.initialVolumeM3;
   const progress = target === 1 ? 1 : (ratio - 1) / (target - 1);
   if (progress <= 0.02) {
@@ -244,7 +279,9 @@ const setProcessStage = (ratio) => {
   } else if (progress >= 0.98) {
     processStage.textContent = 'Final state: compare P₂ and V₂; read the completed work from the shaded PV area.';
   } else if (problemState.quasiStatic) {
-    processStage.textContent = 'Quasi-static step: the gas and external pressures stay nearly balanced.';
+    processStage.textContent = problemState.process === 'adiabatic'
+      ? 'Quasi-static adiabatic step: Pgas ≈ Pexternal while no heat crosses the boundary.'
+      : 'Quasi-static isothermal step: Pgas ≈ Pexternal while heat enters to hold T constant.';
   } else {
     processStage.textContent = 'Non-quasi-static comparison: a finite pressure difference drives the piston.';
   }
@@ -348,7 +385,7 @@ const handleAssistantPrompt = (raw) => {
   }
 
   // Recognize process-only prompts like "isothermal" or "adiabatic"
-  const processTriggers = /(isothermal|adiabatic|constant temperature|no heat exchange|adiabat)/i;
+  const processTriggers = /(isothermal|adiabatic|isobaric|isochoric|polytropic|constant temperature|constant pressure|constant volume|no heat exchange|adiabat)/i;
   if (processTriggers.test(lower)) {
     const parsed = parsePromptWithDebug(prompt);
     if (parsed && parsed.process) {
@@ -359,7 +396,14 @@ const handleAssistantPrompt = (raw) => {
         const work = parsed.problem.initialPressureKPa * parsed.problem.initialVolumeM3 * Math.log(parsed.problem.finalVolumeM3 / parsed.problem.initialVolumeM3);
         chatMessage('bot', `Loaded the isothermal, quasi-static problem. The ideal-gas work output is ${work.toFixed(2)} kJ; use the controls to explore the coupled pressure-volume path.`);
       } else {
-        chatMessage('bot', `Set process: ${parsed.process}. I didn't change volume — try adding a range, e.g. "from 2 L to 5 L ${parsed.process}".`);
+        const processAnswers = {
+          isothermal: 'Temperature stays constant. For an ideal gas, PV stays constant; heat entering balances the work during expansion.',
+          adiabatic: 'No heat crosses the cylinder boundary (Q = 0). Expansion lowers both pressure and temperature; compression raises them.',
+          isobaric: 'Pressure stays constant. As volume changes, temperature changes in proportion for an ideal gas, and boundary work is W = PΔV.',
+          isochoric: 'The piston is locked, so volume is constant and boundary work is zero. Heat transfer changes internal energy, pressure, and temperature.',
+          polytropic: 'A polytropic process follows PVⁿ = constant. The exponent n identifies the particular idealized path.'
+        };
+        chatMessage('bot', `${parsed.process}: ${processAnswers[parsed.process] || 'I can explain this process, but need more state information to build a precise path.'}`);
       }
       return;
     }
@@ -407,7 +451,13 @@ const applyParameters = (params) => {
   // if process provided, update state pill text
   if (params.process) {
     currentProcess = params.process;
+    problemState.process = currentProcess;
+    const lockedVolume = currentProcess === 'isochoric';
+    volumeSlider.disabled = lockedVolume;
+    if (lockedVolume) volumeSlider.value = 1;
+    updateProcessControls();
     setTutorExplanation(currentProcess);
+    if (problemTitle) problemTitle.textContent = `${currentProcess[0].toUpperCase() + currentProcess.slice(1)} piston-cylinder model`;
     // update visuals related to process immediately
     if (currentProcess === 'isothermal') {
       gasMaterial.color.setHex(0x4ea4ff);
@@ -415,8 +465,15 @@ const applyParameters = (params) => {
     } else if (currentProcess === 'adiabatic') {
       gasMaterial.color.setHex(0xffb86b);
       heatArrow.visible = false;
+    } else if (currentProcess === 'isobaric') {
+      gasMaterial.color.setHex(0x3e7cb1);
+      heatArrow.visible = true;
+    } else if (currentProcess === 'isochoric') {
+      gasMaterial.color.setHex(0x7d5ba6);
+      heatArrow.visible = true;
     }
     statePill.textContent = currentProcess + ' (' + (Number(volumeSlider.value).toFixed(2)) + 'x)';
+    updateModel();
   }
   // mark lastParse as applied and update debug view
   if (lastParse) {
@@ -427,11 +484,15 @@ const applyParameters = (params) => {
 };
 
 const updateModel = () => {
+  if (problemState.quasiStaticInferred) {
+    problemState.quasiStatic = true;
+    quasiStaticToggle.checked = true;
+  }
   const ratio = Number(volumeSlider.value);
 
   const gasHeightMin = 2.3;
   const gasHeightMax = 5.1;
-  const gasHeight = THREE.MathUtils.mapLinear(ratio, 0.3, 1.7, gasHeightMin, gasHeightMax);
+  const gasHeight = THREE.MathUtils.mapLinear(ratio, Number(volumeSlider.min), Number(volumeSlider.max), gasHeightMin, gasHeightMax);
   const pistonY = -3.2 + gasHeight + 0.5;
 
   gasVolume.scale.y = gasHeight / 4.6;
@@ -439,43 +500,45 @@ const updateModel = () => {
   piston.position.y = pistonY;
 
   const isProblemIsothermal = currentProcess === 'isothermal';
-  const pressure = isProblemIsothermal
-    ? problemState.initialPressureKPa / ratio
-    : THREE.MathUtils.mapLinear(ratio, 0.3, 2.5, 1.7, 0.6);
-  // temperature mapping depends on process: isothermal -> constant, adiabatic -> steeper change
-  let temperature;
-  if (currentProcess === 'isothermal') {
-    temperature = problemState.temperatureK;
-  } else if (currentProcess === 'adiabatic') {
-    temperature = THREE.MathUtils.mapLinear(ratio, 0.3, 1.7, 380, 210);
-  } else {
-    temperature = THREE.MathUtils.mapLinear(ratio, 0.3, 1.7, 335, 255);
-  }
+  const isProblemAdiabatic = currentProcess === 'adiabatic';
+  const isProblemIsobaric = currentProcess === 'isobaric';
+  const isProblemIsochoric = currentProcess === 'isochoric';
+  const isProblemPolytropic = currentProcess === 'polytropic';
+  const gamma = 1.4;
+  const exponent = isProblemAdiabatic ? gamma : isProblemPolytropic ? 1.3 : isProblemIsobaric ? 0 : 1;
+  const pressure = problemState.initialPressureKPa * ratio ** -exponent;
+  const temperature = isProblemAdiabatic ? problemState.temperatureK * ratio ** (1 - gamma)
+    : isProblemIsobaric ? problemState.temperatureK * ratio
+    : problemState.temperatureK;
 
-  pressureArrow.position.set(0, gasVolume.position.y - 0.2, 0);
-  pressureArrow.setLength(1.5 + (1.8 - pressure) * 1.2, 0.8, 0.45);
+  // Keep the gas-pressure arrow outside the transparent wall so it remains visible.
+  pressureArrow.position.set(-3.25, pistonY - 3.4, 0.4);
+  pressureArrow.setLength(1.2 + Math.min(1.5, pressure / problemState.initialPressureKPa * 1.5), 1.0, 0.5);
   pressureArrow.setDirection(new THREE.Vector3(0, 1, 0));
 
   heatArrow.position.set(-2.7, 0.9, 0.2);
   heatArrow.setDirection(new THREE.Vector3(1, 0, 0));
-  heatArrow.setLength(1.9, 0.7, 0.35);
+  heatArrow.setLength(1.9, 0.9, 0.45);
 
   displacementArrow.position.set(0, -2.6, 0);
   displacementArrow.setDirection(new THREE.Vector3(0, 1, 0));
-  displacementArrow.setLength(2.2 + (ratio - 1) * 1.8, 0.85, 0.4);
+  displacementArrow.setLength(Math.max(1.1, 2.0 + (ratio - 1) * 1.6), 1.0, 0.5);
 
   const actualVolume = problemState.initialVolumeM3 * ratio;
-  const externalPressure = problemState.quasiStatic
-    ? pressure
-    : problemState.initialPressureKPa * problemState.initialVolumeM3 / problemState.finalVolumeM3;
-  const workKJ = isProblemIsothermal
-    ? (problemState.quasiStatic
-      ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(ratio)
-      : externalPressure * Math.max(0, actualVolume - problemState.initialVolumeM3))
-    : 0;
+  const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+  const externalPressure = problemState.quasiStatic ? pressure : problemState.initialPressureKPa * targetRatio ** -exponent;
+  const reversibleWork = isProblemIsochoric ? 0 : isProblemIsothermal
+    ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(ratio)
+    : isProblemIsobaric ? problemState.initialPressureKPa * (actualVolume - problemState.initialVolumeM3)
+    : problemState.initialPressureKPa * problemState.initialVolumeM3 * (1 - ratio ** (1 - exponent)) / (exponent - 1);
+  const workKJ = problemState.quasiStatic ? reversibleWork : externalPressure * (actualVolume - problemState.initialVolumeM3);
   volumeLabel.textContent = isProblemIsothermal ? `${actualVolume.toFixed(4)} m³` : `${ratio.toFixed(2)}x`;
   volumeStat.textContent = isProblemIsothermal ? `${actualVolume.toFixed(4)} m³` : `${ratio.toFixed(2)}`;
   pressureStat.textContent = isProblemIsothermal ? `${pressure.toFixed(0)} kPa` : `${pressure.toFixed(2)}`;
+  // Use physical units for both supported process types.
+  volumeLabel.textContent = `${actualVolume.toFixed(4)} m³`;
+  volumeStat.textContent = `${actualVolume.toFixed(4)} m³`;
+  pressureStat.textContent = `${pressure.toFixed(0)} kPa`;
   tempStat.textContent = `${Math.round(temperature)} K`;
   const compressed = ratio < 1;
   // Preserve currentProcess in the state pill if set
@@ -487,19 +550,52 @@ const updateModel = () => {
   statePill.style.background = compressed ? 'rgba(255, 149, 0, 0.09)' : 'rgba(52, 199, 89, 0.1)';
   statePill.style.setProperty('--blue', compressed ? '#ff9500' : '#34c759');
   statePill.style.color = '#1d1d1f';
-  if (isProblemIsothermal && workResult) {
-    const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
-    const targetWork = problemState.quasiStatic
+  if (workResult) {
+    const targetReversibleWork = isProblemIsochoric ? 0 : isProblemIsothermal
       ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(targetRatio)
-      : externalPressure * (problemState.finalVolumeM3 - problemState.initialVolumeM3);
+      : isProblemIsobaric ? problemState.initialPressureKPa * (problemState.finalVolumeM3 - problemState.initialVolumeM3)
+      : problemState.initialPressureKPa * problemState.initialVolumeM3 * (1 - targetRatio ** (1 - exponent)) / (exponent - 1);
+    const targetWork = problemState.quasiStatic ? targetReversibleWork : externalPressure * (problemState.finalVolumeM3 - problemState.initialVolumeM3);
     const equilibrium = problemState.quasiStatic
       ? `Pgas = Pexternal = ${pressure.toFixed(0)} kPa in this equilibrium step.`
       : `Pgas = ${pressure.toFixed(0)} kPa; Pexternal = ${externalPressure.toFixed(0)} kPa (illustrative constant-load comparison).`;
-    const heatText = problemState.quasiStatic ? `For this ideal-gas isothermal path, Q_in = W_out = ${workKJ.toFixed(2)} kJ.` : 'Temperature is held fixed for comparison; the reversible PV-area work rule is not used.';
+    const heatText = isProblemIsochoric
+      ? 'Isochoric: the piston is locked, so boundary work is zero; heat changes internal energy, pressure, and temperature.'
+      : isProblemIsothermal
+      ? (problemState.quasiStatic ? `Heat enters: Q_in = W_out = ${workKJ.toFixed(2)} kJ, so temperature stays constant.` : 'The temperature is held fixed for comparison; the reversible PV-area rule is not used.')
+      : isProblemAdiabatic ? 'Adiabatic: Q = 0. The gas cools during expansion as internal energy supplies the work.'
+      : isProblemIsobaric ? 'Isobaric: pressure stays constant while temperature changes with volume.'
+      : 'Polytropic reference path: PV^n = constant (shown here with n = 1.3).';
     workResult.innerHTML = `<strong>Work output:</strong> ${workKJ.toFixed(2)} kJ now; ${targetWork.toFixed(2)} kJ at V₂.<br><span style="color:#5e5e63">${equilibrium}<br>${heatText}</span>`;
   }
-  heatArrow.visible = isProblemIsothermal;
+  // State the sign convention explicitly; this avoids calling negative compression work "output".
+  if (workResult) {
+    const targetReversibleWorkForLabel = isProblemIsochoric ? 0 : isProblemIsothermal
+      ? problemState.initialPressureKPa * problemState.initialVolumeM3 * Math.log(targetRatio)
+      : isProblemIsobaric ? problemState.initialPressureKPa * (problemState.finalVolumeM3 - problemState.initialVolumeM3)
+      : problemState.initialPressureKPa * problemState.initialVolumeM3 * (1 - targetRatio ** (1 - exponent)) / (exponent - 1);
+    const targetWorkForLabel = problemState.quasiStatic ? targetReversibleWorkForLabel : externalPressure * (problemState.finalVolumeM3 - problemState.initialVolumeM3);
+    const workMeaning = workKJ < 0
+      ? `Compression: ${Math.abs(workKJ).toFixed(2)} kJ of work is required on the gas.`
+      : 'Expansion: the gas delivers work to the surroundings.';
+    const inferred = problemState.quasiStaticInferred && problemState.quasiStatic
+      ? '<br>Textbook assumption applied: quasi-static ideal-gas path, required to calculate boundary work from the stated end states.'
+      : '';
+    const equilibriumSummary = problemState.quasiStatic
+      ? `Pgas = Pexternal = ${pressure.toFixed(0)} kPa in this equilibrium step.`
+      : `Pgas = ${pressure.toFixed(0)} kPa; Pexternal = ${externalPressure.toFixed(0)} kPa (constant-load comparison).`;
+    const heatSummary = isProblemIsothermal
+      ? 'Isothermal: heat transfer balances the boundary work, so temperature remains constant.'
+      : isProblemAdiabatic ? 'Adiabatic: Q = 0; internal energy changes as the gas does work.'
+      : isProblemIsochoric ? 'Isochoric: boundary work is zero because the piston is locked.'
+      : isProblemIsobaric ? 'Isobaric: pressure remains constant while volume and temperature change.'
+      : 'Polytropic: the displayed path follows PV^n = constant.';
+    workResult.innerHTML = `<strong>Boundary work (by gas):</strong> ${workKJ.toFixed(2)} kJ now; ${targetWorkForLabel.toFixed(2)} kJ at final volume.<br><span style="color:#5e5e63">${workMeaning}<br>${equilibriumSummary}<br>${heatSummary}${inferred}</span>`;
+  }
+  heatArrow.visible = !isProblemAdiabatic;
   heatArrow.setLength(1.2 + Math.min(1.5, Math.abs(workKJ) * 0.12), 0.55, 0.28);
+  externalPressureArrow.position.set(2.2, pistonY + 1.4, 0);
+  externalPressureArrow.setLength(1.0 + Math.min(1.4, externalPressure / problemState.initialPressureKPa * 1.4), 0.9, 0.42);
   setProcessStage(ratio);
   drawPV(ratio);
 };
@@ -528,14 +624,9 @@ resetProcessBtn.addEventListener('click', () => {
   updateModel();
 });
 
-predictBtn.addEventListener('click', () => {
-  chatMessage('bot', 'Prediction checkpoint: before pressing Play, decide whether pressure rises or falls as the piston moves outward at constant temperature. Then use the PV point to check your reasoning.');
-  chatInput.focus();
-});
-
 [initialPressureInput, initialVolumeInput, finalVolumeInput, temperatureInput, quasiStaticToggle].forEach((input) => {
-  input.addEventListener('input', () => { readProblemInputs(input); currentProcess = 'isothermal'; updateModel(); });
-  input.addEventListener('change', () => { readProblemInputs(input); currentProcess = 'isothermal'; updateModel(); });
+  input.addEventListener('input', () => { readProblemInputs(input); currentProcess = problemState.process; updateModel(); });
+  input.addEventListener('change', () => { readProblemInputs(input); currentProcess = problemState.process; updateModel(); });
 });
 
 chatSend.addEventListener('click', () => {
@@ -581,6 +672,7 @@ renderCheckpoints();
 setTutorExplanation('default');
 syncProblemInputs();
 currentProcess = 'isothermal';
+updateProcessControls();
 updateModel();
 const initialPrompt = new URLSearchParams(window.location.search).get('prompt');
 if (initialPrompt) {

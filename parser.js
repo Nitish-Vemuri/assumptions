@@ -18,11 +18,16 @@
   function parseThermoProblem(text) {
     const s = String(text || '').toLowerCase();
     const isothermal = /isothermal|constant temperature/.test(s);
-    const quasiStatic = /quasi[\s-]*static|quasistatic/.test(s);
+    const adiabatic = /adiabatic|no heat exchange|adiabat/.test(s);
+    const isobaric = /isobaric|constant pressure/.test(s);
+    const isochoric = /isochoric|constant volume/.test(s);
+    const polytropic = /polytropic/.test(s);
+    const quasiStaticExplicit = /quasi[\s-]*static|quasistatic/.test(s);
     const pressure = s.match(/(\d+(?:\.\d+)?)\s*(mpa|kpa|pa)\b/);
     const volumeMatches = [...s.matchAll(/(\d+(?:\.\d+)?)\s*(m\^?3|m³|cm\^?3|cm³|l|litre|liter)(?=$|[^a-z0-9])/g)];
     const temperature = s.match(/(\d+(?:\.\d+)?)\s*k\b/);
-    if (!isothermal || !pressure || volumeMatches.length < 2) return null;
+    const temperatureCelsius = s.match(/(\d+(?:\.\d+)?)\s*(?:°|deg(?:ree)?s?\s*)c\b/);
+    if ((!isothermal && !adiabatic && !isobaric && !isochoric && !polytropic) || !pressure || volumeMatches.length < 2) return null;
 
     const pressureValue = parseFloat(pressure[1]);
     const pressureKPa = pressure[2] === 'mpa' ? pressureValue * 1000 : pressure[2] === 'pa' ? pressureValue / 1000 : pressureValue;
@@ -33,9 +38,12 @@
       initialPressureKPa: pressureKPa,
       initialVolumeM3,
       finalVolumeM3,
-      temperatureK: temperature ? parseFloat(temperature[1]) : 300,
-      quasiStatic,
-      process: 'isothermal'
+      temperatureK: temperature ? parseFloat(temperature[1]) : temperatureCelsius ? parseFloat(temperatureCelsius[1]) + 273.15 : 300,
+      // A reversible/quasi-static path is the standard textbook assumption when
+      // isothermal boundary work is requested but no irreversible path is given.
+      quasiStatic: true,
+      quasiStaticInferred: !quasiStaticExplicit,
+      process: adiabatic ? 'adiabatic' : isobaric ? 'isobaric' : isochoric ? 'isochoric' : polytropic ? 'polytropic' : 'isothermal'
     };
   }
 
@@ -47,7 +55,7 @@
     const thermoProblem = parseThermoProblem(text);
     if (thermoProblem) {
       out.problem = thermoProblem;
-      out.process = 'isothermal';
+      out.process = thermoProblem.process;
       out.ratio = thermoProblem.finalVolumeM3 / thermoProblem.initialVolumeM3;
       out.action = 'apply';
       out.confidence = 0.99;
@@ -57,6 +65,9 @@
     // detect process type
     if (s.match(/isothermal|constant temperature/)) out.process = 'isothermal';
     if (s.match(/adiabatic|no heat exchange|adiabat/)) out.process = 'adiabatic';
+    if (s.match(/isobaric|constant pressure/)) out.process = 'isobaric';
+    if (s.match(/isochoric|constant volume/)) out.process = 'isochoric';
+    if (s.match(/polytropic/)) out.process = 'polytropic';
 
     // detect explicit volume range e.g. "from 2 L to 5 L" or m^3
     const range = s.match(/from\s*(\d+\.?\d*)\s*(m\^?3|cm\^?3|l|litre|liter)?\s*to\s*(\d+\.?\d*)\s*(m\^?3|cm\^?3|l|litre|liter)?/);

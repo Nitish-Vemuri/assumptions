@@ -37,6 +37,12 @@ function almostEqual(a, b, eps = 1e-6) {
   r = parser.parsePrompt('compress');
   assert.strictEqual(r.action, 'apply');
 
+  r = parser.parsePrompt('show an isobaric expansion');
+  assert.strictEqual(r.process, 'isobaric');
+
+  r = parser.parsePrompt('constant volume heating');
+  assert.strictEqual(r.process, 'isochoric');
+
   r = parser.parsePrompt('A frictionless piston-cylinder device contains a gas initially at 0.8 MPa and 0.015 m³. It expands quasi-statically at constant temperature to a final volume of 0.030 m³. The work output will be ____ kJ.');
   assert.strictEqual(r.process, 'isothermal');
   assert.ok(almostEqual(r.problem.initialPressureKPa, 800));
@@ -45,6 +51,18 @@ function almostEqual(a, b, eps = 1e-6) {
   assert.strictEqual(r.problem.quasiStatic, true);
   const workKJ = r.problem.initialPressureKPa * r.problem.initialVolumeM3 * Math.log(r.problem.finalVolumeM3 / r.problem.initialVolumeM3);
   assert.ok(almostEqual(workKJ, 8.317766));
+
+  r = parser.parsePrompt('A gas initially at 500 kPa and 0.010 m³ expands quasi-statically and adiabatically to 0.020 m³.');
+  assert.strictEqual(r.process, 'adiabatic');
+  assert.strictEqual(r.problem.process, 'adiabatic');
+
+  r = parser.parsePrompt('A piston-cylinder device initially contains 0.4 m³ of air at 100 kPa and 80°C. The air is now isothermally compressed to 0.1 m³.');
+  assert.strictEqual(r.process, 'isothermal');
+  assert.strictEqual(r.problem.quasiStatic, true);
+  assert.strictEqual(r.problem.quasiStaticInferred, true);
+  assert.ok(almostEqual(r.problem.temperatureK, 353.15));
+  const compressionWorkKJ = r.problem.initialPressureKPa * r.problem.initialVolumeM3 * Math.log(r.problem.finalVolumeM3 / r.problem.initialVolumeM3);
+  assert.ok(almostEqual(compressionWorkKJ, -55.451774));
 
   console.log('All parser tests passed.');
 })();

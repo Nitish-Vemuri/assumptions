@@ -188,9 +188,10 @@
     .process-controls button { border: 0; border-radius: 9px; padding: 8px; cursor: pointer; font-weight: 700; background: #0071e3; color: #fff; }
     .process-controls button.secondary { background: #e5e5ea; color: #1d1d1f; }
     .process-stage { margin-top: 9px; font-size: 12px; font-weight: 700; color: #0057c2; }
-    .scene-key { position: absolute; z-index: 2; right: 395px; top: 18px; max-width: 185px; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,0.78); border: 1px solid var(--line); font-size: 11px; line-height: 1.45; color: var(--muted); }
+    .scene-key { position: absolute; z-index: 2; left: 18px; bottom: 18px; max-width: 245px; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,0.88); border: 1px solid var(--line); font-size: 11px; line-height: 1.45; color: var(--muted); }
     .scene-key strong { color: var(--ink); display: block; margin-bottom: 4px; }
     #debugPanel { display: none; }
+    .guide-panel { display: none; }
 
     .guide-panel {
       position: absolute;
@@ -418,7 +419,7 @@
   </div>
 
   <div class="problem-panel">
-    <h2 class="problem-title">Isothermal problem model</h2>
+    <h2 id="problemTitle" class="problem-title">Piston-cylinder process model</h2>
     <p id="questionContext" class="question-context">Load a piston-cylinder question to create a matched process.</p>
     <p class="problem-copy">For an ideal gas at constant temperature, pressure and volume are coupled: P·V = constant.</p>
     <div class="problem-grid">
@@ -432,7 +433,6 @@
       <button id="playProcessBtn" type="button">Play process</button>
       <button id="stepProcessBtn" class="secondary" type="button">Step forward</button>
       <button id="resetProcessBtn" class="secondary" type="button">Reset state</button>
-      <button id="predictBtn" class="secondary" type="button">Make a prediction</button>
     </div>
     <div id="processStage" class="process-stage">Initial state: inspect P₁, V₁, and T.</div>
     <div id="workResult" class="work-result">Work output to V₂: —</div>
@@ -441,9 +441,10 @@
 
   <div class="scene-key">
     <strong>What to watch</strong>
-    Orange arrow: pressure force<br>
+    Red arrow: gas pressure upward<br>
+    Purple arrow: external pressure downward<br>
     Blue arrow: piston displacement<br>
-    Green arrow: heat entering to keep T constant
+    Green arrow: heat flow (when applicable)
   </div>
 
   <div class="guide-panel">
@@ -461,7 +462,7 @@
       <span style="color: var(--green);">● Live</span>
     </div>
     <div class="chat-window" id="chatWindow">
-      <div class="chat-message bot">This prototype currently focuses on the piston-cylinder model. Try asking about compression, expansion, pressure, or volume.</div>
+      <div class="chat-message bot">Try: “isothermal”, “adiabatic”, “isobaric”, “isochoric”, or paste a full piston-cylinder question.</div>
     </div>
     <div class="chat-input-row">
       <input id="chatInput" class="chat-input" type="text" placeholder="Ask about the cylinder..." />
@@ -479,8 +480,8 @@
     <div style="margin-top:6px; color:#666; word-break:break-all;">Last raw: <span id="dbgRaw">-</span></div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.140.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="three.min.js"></script>
+  <script src="OrbitControls.js"></script>
   <script src="parser.js"></script>
   <script src="cylinder-3d.js"></script>
 </body>
