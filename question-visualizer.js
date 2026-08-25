@@ -1,5 +1,5 @@
 const sampleQuestions = [
-  'A piston-cylinder system contains an ideal gas. The gas expands isothermally from 2 L to 5 L at 300 K. Find the work done by the gas.',
+  'A piston-cylinder contains a gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the work done by the gas.',
   'A heat engine operates between 600 K and 300 K. Find its maximum efficiency.',
   'An ideal gas is compressed adiabatically. Explain what happens to pressure and temperature.',
   'A piston-cylinder system undergoes isobaric expansion at constant pressure while 400 J of heat is added.',
@@ -14,7 +14,7 @@ const parseQuestion = (text = '') => {
   let process = 'general physics problem';
   let template = 'general';
 
-  if (hasAny(lower, ['isothermal', 'constant temperature'])) {
+  if (hasAny(lower, ['isothermal', 'constant temperature', 'constant temp'])) {
     process = 'isothermal process';
     template = 'isothermal';
   } else if (hasAny(lower, ['adiabatic', 'no heat', 'heat exchange'])) {
@@ -182,7 +182,8 @@ const getExplanation = (info = {}) => {
 
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
-  if (info.template === 'isothermal' || info.template === 'adiabatic') {
+  const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric'].includes(info.template);
+  if ((info.system === 'piston-cylinder system' && pistonProcess) || info.template === 'isothermal' || info.template === 'adiabatic') {
     return `cylinder-3d.html?prompt=${prompt}`;
   }
 
@@ -197,6 +198,28 @@ const getMatchedModelUrl = (info = {}, question = '') => {
     general: 'thermo'
   };
   return `index.html?model=${modelMap[info.template] || 'thermo'}`;
+};
+
+const getModelReadiness = (text, info) => {
+  if (info.template === 'general') {
+    return { ready: false, message: 'I could not identify a supported physics process. Please name the process or describe the physical situation more clearly.' };
+  }
+  if (info.system !== 'piston-cylinder system') return { ready: true, message: '' };
+  const parsed = typeof parsePrompt === 'function' ? parsePrompt(text, {}) : null;
+  if (parsed && parsed.problem) return { ready: true, message: '' };
+  return {
+    ready: false,
+    message: 'To build this piston-cylinder model, include the initial pressure and both the initial and final volumes. The stated process will be used as the textbook assumption.'
+  };
+};
+
+const showClarification = (readiness) => {
+  const message = document.getElementById('clarificationMessage');
+  const openButton = document.getElementById('openMatchedModelBtn');
+  if (!message || !openButton) return;
+  message.textContent = readiness.message;
+  message.classList.toggle('hidden', readiness.ready);
+  openButton.disabled = !readiness.ready;
 };
 
 const renderVisualization = (info = {}) => {
@@ -319,19 +342,17 @@ const analyzeQuestion = () => {
   if (!text) return null;
 
   const info = parseQuestion(text);
-  const explanation = getExplanation(info);
+  const readiness = getModelReadiness(text, info);
 
   document.getElementById('processTag').textContent = info.process;
   document.getElementById('systemTag').textContent = info.system;
   document.getElementById('targetTag').textContent = info.target;
   document.getElementById('variablesText').textContent = info.variables.join(', ');
   document.getElementById('assumptionsText').textContent = info.assumptions.join(', ');
-  document.getElementById('explanationText').textContent = explanation.explanation;
-  document.getElementById('formulaText').textContent = explanation.formula;
 
   resultPanel.classList.remove('hidden');
-  renderVisualization(info);
-  return { info, explanation, matchedModelUrl: getMatchedModelUrl(info, text) };
+  showClarification(readiness);
+  return { info, readiness, matchedModelUrl: getMatchedModelUrl(info, text) };
 };
 
 const initializeVisualizer = () => {
@@ -348,6 +369,11 @@ const initializeVisualizer = () => {
       const input = document.getElementById('questionInput');
       if (!input || !input.value.trim()) return;
       const info = parseQuestion(input.value);
+      const readiness = getModelReadiness(input.value.trim(), info);
+      if (!readiness.ready) {
+        showClarification(readiness);
+        return;
+      }
       window.location.href = getMatchedModelUrl(info, input.value.trim());
     });
   }
@@ -363,17 +389,6 @@ const initializeVisualizer = () => {
     });
   }
 
-  document.querySelectorAll('[data-example]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const index = Number(button.dataset.example);
-      const input = document.getElementById('questionInput');
-      if (input && sampleQuestions[index]) {
-        input.value = sampleQuestions[index];
-        analyzeQuestion();
-      }
-    });
-  });
-
   analyzeQuestion();
 };
 
@@ -382,6 +397,7 @@ const questionVisualizer = {
   parseQuestion,
   getExplanation,
   getMatchedModelUrl,
+  getModelReadiness,
   renderVisualization,
   analyzeQuestion,
   initializeVisualizer

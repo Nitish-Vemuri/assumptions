@@ -78,30 +78,10 @@
       margin-right: 8px;
       margin-bottom: 8px;
     }
-    .visual-box {
-      min-height: 220px;
-      border-radius: 16px;
-      background: linear-gradient(180deg, #f7f7f8, #eef3ff);
-      border: 1px solid rgba(0,0,0,0.06);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      color: #444;
-      overflow: hidden;
-    }
     .hidden {
       display: none !important;
     }
-    .explanation {
-      line-height: 1.6;
-      color: #2b2b2b;
-    }
-    .formula {
-      font-size: 18px;
-      font-weight: 700;
-      color: #0057c2;
-    }
+    .clarification { margin: 16px 0 0; color: #9a3412; line-height: 1.5; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -113,18 +93,13 @@
 
     <div class="panel">
       <h3>Paste a physics question</h3>
-      <textarea id="questionInput" placeholder="Example: A piston-cylinder system contains an ideal gas. The gas expands isothermally from 2 L to 5 L at 300 K. Find the work done by the gas.">A piston-cylinder system contains an ideal gas. The gas expands isothermally from 2 L to 5 L at 300 K. Find the work done by the gas.</textarea>
+      <textarea id="questionInput" placeholder="Example: A piston-cylinder contains a gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the work.">A piston-cylinder contains a gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the work.</textarea>
       <div class="btn-row">
         <button id="analyzeBtn">Analyze question</button>
         <button id="sampleBtn" class="secondary">Load sample</button>
         <button id="openMatchedModelBtn" class="secondary" type="button">Open matched model</button>
       </div>
-      <div class="btn-row" style="margin-top: 12px;">
-        <button type="button" class="secondary" data-example="0">Isothermal</button>
-        <button type="button" class="secondary" data-example="1">Engine</button>
-        <button type="button" class="secondary" data-example="2">Adiabatic</button>
-        <button type="button" class="secondary" data-example="4">Entropy</button>
-      </div>
+      <p id="clarificationMessage" class="clarification hidden" role="status"></p>
     </div>
 
     <div id="resultPanel" class="panel hidden">
@@ -147,22 +122,9 @@
       </div>
     </div>
 
-    <div class="panel">
-      <h3>Generated visualization</h3>
-      <div class="visual-box" id="visualCanvas">
-        PV Diagram / piston view will appear here
-      </div>
-    </div>
-
-    <div class="panel">
-      <h3>Interpretation</h3>
-      <div id="explanationText" class="explanation">
-        We’ll explain the process and the key thermodynamic idea here.
-      </div>
-      <div id="formulaText" class="formula" style="margin-top:14px;"></div>
-    </div>
   </div>
 
+  <script src="parser.js"></script>
   <script src="question-visualizer.js"></script>
 </body>
 </html>

@@ -17,7 +17,7 @@
 
   function parseThermoProblem(text) {
     const s = String(text || '').toLowerCase();
-    const isothermal = /isothermal|constant temperature/.test(s);
+    const isothermal = /isothermal|constant temperature|constant temp/.test(s);
     const adiabatic = /adiabatic|no heat exchange|adiabat/.test(s);
     const isobaric = /isobaric|constant pressure/.test(s);
     const isochoric = /isochoric|constant volume/.test(s);
@@ -63,7 +63,7 @@
     }
 
     // detect process type
-    if (s.match(/isothermal|constant temperature/)) out.process = 'isothermal';
+    if (s.match(/isothermal|constant temperature|constant temp/)) out.process = 'isothermal';
     if (s.match(/adiabatic|no heat exchange|adiabat/)) out.process = 'adiabatic';
     if (s.match(/isobaric|constant pressure/)) out.process = 'isobaric';
     if (s.match(/isochoric|constant volume/)) out.process = 'isochoric';

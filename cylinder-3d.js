@@ -195,8 +195,10 @@ const readProblemInputs = (changedInput) => {
 
 const updateVolumeRange = () => {
   const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
-  volumeSlider.min = Math.min(0.3, targetRatio * 0.8).toFixed(2);
-  volumeSlider.max = Math.max(2.5, targetRatio * 1.1).toFixed(2);
+  // The slider represents the stated process path, not an open-ended volume
+  // control. Its endpoints are exactly V1 and V2 from the matched question.
+  volumeSlider.min = Math.min(1, targetRatio).toFixed(4);
+  volumeSlider.max = Math.max(1, targetRatio).toFixed(4);
 };
 
 const drawPV = (ratio) => {
@@ -444,7 +446,7 @@ const applyParameters = (params) => {
     return true;
   }
   if (typeof params.ratio === 'number') {
-    const r = Math.max(0.3, Math.min(1.7, params.ratio));
+    const r = Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), params.ratio));
     volumeSlider.value = r;
     updateModel();
   }

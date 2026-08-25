@@ -1,4 +1,4 @@
-const { parseQuestion, getExplanation, getMatchedModelUrl } = require('./question-visualizer.js');
+const { parseQuestion, getExplanation, getMatchedModelUrl, getModelReadiness } = require('./question-visualizer.js');
 
 function assertEqual(actual, expected, label) {
   if (actual !== expected) {
@@ -15,6 +15,10 @@ function assertIncludes(actual, expected, label) {
 const iso = parseQuestion('A gas expands isothermally from 2 L to 5 L at 300 K. Find the work done by the gas.');
 assertEqual(iso.template, 'isothermal', 'isothermal detection');
 assertEqual(iso.process, 'isothermal process', 'isothermal process name');
+
+const abbreviatedIso = parseQuestion('A piston-cylinder expands at constant temp.');
+assertEqual(abbreviatedIso.template, 'isothermal', 'constant temp detection');
+assertIncludes(getMatchedModelUrl(abbreviatedIso, 'constant temp'), 'cylinder-3d.html', 'constant temp route');
 
 const adiabatic = parseQuestion('An ideal gas is compressed adiabatically. Explain what happens to pressure and temperature.');
 assertEqual(adiabatic.template, 'adiabatic', 'adiabatic detection');
@@ -41,5 +45,8 @@ assertEqual(orbit.template, 'gravitation', 'gravitation detection');
 assertIncludes(getMatchedModelUrl(iso, 'isothermal from 2 L to 5 L'), 'cylinder-3d.html', 'isothermal route');
 assertIncludes(getMatchedModelUrl(engine, 'heat engine'), 'model=second-law', 'engine route');
 assertIncludes(getMatchedModelUrl(collision, 'collision'), 'model=collisions', 'collision route');
+assertIncludes(getMatchedModelUrl(parseQuestion('A piston-cylinder expands isobarically.'), 'piston'), 'cylinder-3d.html', 'piston isobaric route');
+assertEqual(getModelReadiness('A vague question', parseQuestion('A vague question')).ready, false, 'unclear question is blocked');
+assertEqual(getModelReadiness('A heat engine operates between 600 K and 300 K.', engine).ready, true, 'known non-piston question is ready');
 
 console.log('question visualizer tests passed');

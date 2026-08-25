@@ -29,6 +29,9 @@ function almostEqual(a, b, eps = 1e-6) {
   r = parser.parsePrompt('isothermal');
   assert.strictEqual(r.process, 'isothermal');
 
+  r = parser.parsePrompt('constant temp');
+  assert.strictEqual(r.process, 'isothermal');
+
   r = parser.parsePrompt('from 0.002 m^3 to 0.004 m^3 isothermal');
   // 0.002 m^3 = 2 L, 0.004 m^3 = 4 L -> ratio 2
   assert.strictEqual(r.action, 'apply');
@@ -51,6 +54,11 @@ function almostEqual(a, b, eps = 1e-6) {
   assert.strictEqual(r.problem.quasiStatic, true);
   const workKJ = r.problem.initialPressureKPa * r.problem.initialVolumeM3 * Math.log(r.problem.finalVolumeM3 / r.problem.initialVolumeM3);
   assert.ok(almostEqual(workKJ, 8.317766));
+
+  r = parser.parsePrompt('A gas initially at 800 kPa and 0.015 m3 expands quasi-statically at constant temp to 0.030 m3.');
+  assert.strictEqual(r.process, 'isothermal');
+  assert.strictEqual(r.problem.process, 'isothermal');
+  assert.ok(almostEqual(r.problem.finalVolumeM3, 0.030));
 
   r = parser.parsePrompt('A gas initially at 500 kPa and 0.010 m³ expands quasi-statically and adiabatically to 0.020 m³.');
   assert.strictEqual(r.process, 'adiabatic');
