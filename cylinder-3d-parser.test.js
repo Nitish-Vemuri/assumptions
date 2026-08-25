@@ -52,8 +52,17 @@ function almostEqual(a, b, eps = 1e-6) {
   assert.ok(almostEqual(r.problem.initialVolumeM3, 0.015));
   assert.ok(almostEqual(r.problem.finalVolumeM3, 0.030));
   assert.strictEqual(r.problem.quasiStatic, true);
+  assert.strictEqual(r.problem.requestedQuantity, 'boundary_work');
   const workKJ = r.problem.initialPressureKPa * r.problem.initialVolumeM3 * Math.log(r.problem.finalVolumeM3 / r.problem.initialVolumeM3);
   assert.ok(almostEqual(workKJ, 8.317766));
+
+  r = parser.parsePrompt('An ideal gas is compressed isothermally from 0.3 m3 to 0.2 m3. The initial pressure is 200 kPa. Find the final pressure.');
+  assert.strictEqual(r.problem.requestedQuantity, 'final_pressure');
+  assert.ok(almostEqual(r.problem.initialPressureKPa * r.problem.initialVolumeM3 / r.problem.finalVolumeM3, 300));
+
+  r = parser.parsePrompt('An ideal gas initially occupies 0.04 meter cube at 150 kPa. It undergoes an isothermal expansion until its pressure becomes 60 kPa. Find V2.');
+  assert.strictEqual(r.problem.requestedQuantity, 'final_volume');
+  assert.ok(almostEqual(r.problem.finalVolumeM3, 0.1));
 
   r = parser.parsePrompt('A gas initially at 800 kPa and 0.015 m3 expands quasi-statically at constant temp to 0.030 m3.');
   assert.strictEqual(r.process, 'isothermal');

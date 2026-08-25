@@ -77,6 +77,12 @@ const parseQuestion = (text = '') => {
     target = 'efficiency';
   } else if (hasAny(lower, ['entropy', 'second law'])) {
     target = 'entropy';
+  } else if (hasAny(lower, ['final pressure', 'find the pressure'])) {
+    target = 'final pressure';
+  } else if (hasAny(lower, ['final volume', 'find v2', 'find the volume'])) {
+    target = 'final volume';
+  } else if (hasAny(lower, ['final temperature', 'find the temperature'])) {
+    target = 'final temperature';
   } else if (hasAny(lower, ['work', 'done by the gas', 'find the work'])) {
     target = 'work';
   } else if (hasAny(lower, ['temperature', 'pressure', 'heat'])) {
@@ -184,7 +190,7 @@ const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
   const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric'].includes(info.template);
   if ((info.system === 'piston-cylinder system' && pistonProcess) || info.template === 'isothermal' || info.template === 'adiabatic') {
-    return `cylinder-3d.html?prompt=${prompt}`;
+    return `cylinder-3d.html?v=state-solver&prompt=${prompt}`;
   }
 
   const modelMap = {

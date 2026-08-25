@@ -16,6 +16,7 @@ const temperatureInput = document.getElementById('temperatureInput');
 const quasiStaticToggle = document.getElementById('quasiStaticToggle');
 const workResult = document.getElementById('workResult');
 const pvCanvas = document.getElementById('pvCanvas');
+const tvCanvas = document.getElementById('tvCanvas');
 const questionContext = document.getElementById('questionContext');
 const playProcessBtn = document.getElementById('playProcessBtn');
 const stepProcessBtn = document.getElementById('stepProcessBtn');
@@ -31,8 +32,8 @@ const dbgConfidence = document.getElementById('dbgConfidence');
 const dbgRaw = document.getElementById('dbgRaw');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xfafdff);
-scene.fog = new THREE.Fog(0xfafdff, 14, 30);
+scene.background = new THREE.Color(0xfff8ed);
+scene.fog = new THREE.Fog(0xfff8ed, 14, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -64,7 +65,7 @@ const cylinderGroup = new THREE.Group();
 scene.add(cylinderGroup);
 
 const wallMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x4f8ab8,
+  color: 0x2e9a95,
   roughness: 0.38,
   metalness: 0.12,
   side: THREE.DoubleSide,
@@ -73,7 +74,7 @@ const wallMaterial = new THREE.MeshPhysicalMaterial({
 });
 
 const gasMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x1463a5,
+  color: 0x21b6c7,
   roughness: 0.18,
   metalness: 0.1,
   transparent: true,
@@ -94,8 +95,8 @@ const baseMaterial = new THREE.MeshStandardMaterial({
 });
 
 const openRingMaterial = new THREE.MeshStandardMaterial({
-  color: 0xff9500,
-  emissive: 0x3a1c00,
+  color: 0x243b53,
+  emissive: 0x071523,
   roughness: 0.45,
   metalness: 0.4
 });
@@ -139,6 +140,39 @@ scene.add(displacementArrow);
 const externalPressureArrow = new THREE.ArrowHelper(new THREE.Vector3(0, -1, 0), new THREE.Vector3(2.2, 4.1, 0), 1.3, 0x6f2dbd, 1.05, 0.5);
 scene.add(externalPressureArrow);
 
+const makeArrowLabel = (text, color) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256; canvas.height = 64;
+  const context = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthTest: false });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(1.55, 0.39, 1);
+  sprite.userData = { canvas, context, texture, color, text: '' };
+  scene.add(sprite);
+  setArrowLabel(sprite, text);
+  return sprite;
+};
+
+const setArrowLabel = (sprite, text) => {
+  if (sprite.userData.text === text) return;
+  const { canvas, context, texture, color } = sprite.userData;
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.font = '700 34px system-ui';
+  context.textAlign = 'center'; context.textBaseline = 'middle';
+  context.fillStyle = 'rgba(255,255,255,0.88)';
+  context.fillRect(4, 4, canvas.width - 8, canvas.height - 8);
+  context.fillStyle = color;
+  context.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
+  texture.needsUpdate = true;
+  sprite.userData.text = text;
+};
+
+const pressureLabel = makeArrowLabel('P₍gas₎', '#b42318');
+const heatLabel = makeArrowLabel('Qᵢₙ', '#087443');
+const displacementLabel = makeArrowLabel('Wₒᵤₜ', '#005bd1');
+const externalPressureLabel = makeArrowLabel('P₍ext₎', '#6f2dbd');
+
 const axis = new THREE.AxesHelper(3.5);
 axis.position.set(0, -4.4, 0);
 scene.add(axis);
@@ -161,6 +195,7 @@ let problemState = {
   temperatureK: 300,
   quasiStatic: true,
   quasiStaticInferred: false,
+  requestedQuantity: 'boundary_work',
   gasConstantKPaM3PerK: 0.04,
   process: 'isothermal'
 };
@@ -236,6 +271,55 @@ const drawPV = (ratio) => {
   ctx.beginPath(); ctx.arc(x(currentV), y(p1 * ratio ** -exponent), 4.5, 0, Math.PI * 2); ctx.fillStyle = '#ff5a36'; ctx.fill();
 };
 
+const drawTV = (ratio) => {
+  if (!tvCanvas) return;
+  const rect = tvCanvas.getBoundingClientRect();
+  const width = Math.max(280, Math.round(rect.width));
+  const height = 120;
+  const dpr = Math.min(window.devicePixelRatio, 2);
+  tvCanvas.width = width * dpr; tvCanvas.height = height * dpr;
+  const ctx = tvCanvas.getContext('2d');
+  ctx.scale(dpr, dpr); ctx.clearRect(0, 0, width, height);
+  const pad = { left: 38, right: 10, top: 12, bottom: 25 };
+  const v1 = problemState.initialVolumeM3;
+  const v2 = problemState.finalVolumeM3;
+  const t1 = problemState.temperatureK;
+  const process = problemState.process;
+  const gamma = 1.4;
+  const temperatureAt = (volume) => {
+    const r = volume / v1;
+    if (process === 'adiabatic') return t1 * r ** (1 - gamma);
+    if (process === 'isobaric') return t1 * r;
+    if (process === 'polytropic') return t1 * r ** (1 - 1.3);
+    return t1;
+  };
+  const t2 = temperatureAt(v2);
+  const minV = Math.min(v1, v2) * 0.88;
+  const maxV = Math.max(v1, v2) * 1.12;
+  const minT = process === 'isochoric' ? t1 * 0.7 : Math.min(t1, t2) * 0.9;
+  const maxT = process === 'isochoric' ? t1 * 1.3 : Math.max(t1, t2) * 1.1;
+  const x = (volume) => pad.left + ((volume - minV) / (maxV - minV)) * (width - pad.left - pad.right);
+  const y = (temperature) => height - pad.bottom - ((temperature - minT) / (maxT - minT)) * (height - pad.top - pad.bottom);
+  ctx.strokeStyle = '#8b8b91'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom); ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
+  ctx.fillStyle = '#6e6e73'; ctx.font = '10px system-ui'; ctx.fillText('T', 10, 17); ctx.fillText('V', width - 12, height - 8);
+  ctx.strokeStyle = '#0f766e'; ctx.lineWidth = 2.5; ctx.beginPath();
+  if (process === 'isochoric') {
+    ctx.moveTo(x(v1), y(minT + (maxT - minT) * 0.12)); ctx.lineTo(x(v1), y(minT + (maxT - minT) * 0.88));
+    ctx.fillStyle = '#6e6e73'; ctx.fillText('V = constant', x(v1) + 6, pad.top + 12);
+  } else {
+    for (let i = 0; i <= 60; i++) {
+      const volume = v1 + (v2 - v1) * i / 60;
+      i ? ctx.lineTo(x(volume), y(temperatureAt(volume))) : ctx.moveTo(x(volume), y(temperatureAt(volume)));
+    }
+  }
+  ctx.stroke();
+  const currentV = v1 * ratio;
+  const currentT = temperatureAt(currentV);
+  ctx.beginPath(); ctx.arc(x(currentV), y(currentT), 4.5, 0, Math.PI * 2); ctx.fillStyle = '#f97316'; ctx.fill();
+  if (process === 'isothermal') { ctx.fillStyle = '#0f766e'; ctx.fillText('T = constant', x(v1) + 6, y(t1) - 7); }
+};
+
 const configureProblem = (problem, sourceText = '') => {
   if (!problem) return;
   problemState = { ...problemState, ...problem };
@@ -249,13 +333,24 @@ const configureProblem = (problem, sourceText = '') => {
   quasiStaticToggle.disabled = problemState.quasiStaticInferred;
   const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
   updateVolumeRange();
-  volumeSlider.value = Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), targetRatio));
+  // A matched question should begin at V1. The replay then makes the state
+  // change visible instead of dropping the student directly at V2.
+  volumeSlider.value = 1;
   volumeSlider.disabled = problemState.process === 'isochoric';
   if (volumeSlider.disabled) volumeSlider.value = 1;
   updateProcessControls();
   if (sourceText && questionContext) questionContext.textContent = `Matched question: ${sourceText}`;
   if (problemTitle) problemTitle.textContent = `${problemState.process[0].toUpperCase() + problemState.process.slice(1)} piston-cylinder model`;
   setTutorExplanation(problemState.process);
+  updateModel();
+};
+
+const playMatchedProcess = () => {
+  if (problemState.process === 'isochoric') return;
+  volumeSlider.value = 1;
+  processRunning = true;
+  playProcessBtn.textContent = 'Pause process';
+  processStage.textContent = 'Starting from the given initial state: watch the piston, pressure, and process condition change together.';
   updateModel();
 };
 
@@ -387,7 +482,7 @@ const handleAssistantPrompt = (raw) => {
   }
 
   // Recognize process-only prompts like "isothermal" or "adiabatic"
-  const processTriggers = /(isothermal|adiabatic|isobaric|isochoric|polytropic|constant temperature|constant pressure|constant volume|no heat exchange|adiabat)/i;
+  const processTriggers = /(isothermal|adiabatic|isobaric|isochoric|polytropic|constant temperature|constant temp|constant pressure|constant volume|no heat exchange|adiabat)/i;
   if (processTriggers.test(lower)) {
     const parsed = parsePromptWithDebug(prompt);
     if (parsed && parsed.process) {
@@ -395,8 +490,17 @@ const handleAssistantPrompt = (raw) => {
       // use applyParameters so visuals and internal state update consistently
       applyParameters(parsed);
       if (parsed.problem) {
-        const work = parsed.problem.initialPressureKPa * parsed.problem.initialVolumeM3 * Math.log(parsed.problem.finalVolumeM3 / parsed.problem.initialVolumeM3);
-        chatMessage('bot', `Loaded the isothermal, quasi-static problem. The ideal-gas work output is ${work.toFixed(2)} kJ; use the controls to explore the coupled pressure-volume path.`);
+        const ratio = parsed.problem.finalVolumeM3 / parsed.problem.initialVolumeM3;
+        const exponent = parsed.problem.process === 'adiabatic' ? 1.4 : parsed.problem.process === 'polytropic' ? 1.3 : parsed.problem.process === 'isobaric' ? 0 : 1;
+        const finalPressure = parsed.problem.initialPressureKPa * ratio ** -exponent;
+        const answer = parsed.problem.requestedQuantity === 'final_pressure'
+          ? `The requested final pressure is P₂ = ${finalPressure.toFixed(2)} kPa.`
+          : parsed.problem.requestedQuantity === 'final_volume'
+            ? `The requested final volume is V₂ = ${parsed.problem.finalVolumeM3.toFixed(5)} m³.`
+          : parsed.problem.requestedQuantity === 'final_temperature'
+            ? 'The requested final temperature is displayed in the result panel.'
+            : 'The requested boundary work is displayed in the result panel.';
+        chatMessage('bot', `Loaded the matched ${parsed.problem.process} problem. ${answer}`);
       } else {
         const processAnswers = {
           isothermal: 'Temperature stays constant. For an ideal gas, PV stays constant; heat entering balances the work during expansion.',
@@ -511,20 +615,30 @@ const updateModel = () => {
   const pressure = problemState.initialPressureKPa * ratio ** -exponent;
   const temperature = isProblemAdiabatic ? problemState.temperatureK * ratio ** (1 - gamma)
     : isProblemIsobaric ? problemState.temperatureK * ratio
+    : isProblemPolytropic ? problemState.temperatureK * ratio ** (1 - 1.3)
     : problemState.temperatureK;
 
   // Keep the gas-pressure arrow outside the transparent wall so it remains visible.
   pressureArrow.position.set(-3.25, pistonY - 3.4, 0.4);
   pressureArrow.setLength(1.2 + Math.min(1.5, pressure / problemState.initialPressureKPa * 1.5), 1.0, 0.5);
   pressureArrow.setDirection(new THREE.Vector3(0, 1, 0));
+  pressureLabel.position.set(-3.25, pistonY - 0.9, 0.4);
+  setArrowLabel(pressureLabel, 'P₍gas₎');
 
-  heatArrow.position.set(-2.7, 0.9, 0.2);
-  heatArrow.setDirection(new THREE.Vector3(1, 0, 0));
+  const expansion = problemState.finalVolumeM3 >= problemState.initialVolumeM3;
+  const heatEnters = !isProblemAdiabatic && expansion;
+  heatArrow.position.set(heatEnters ? -2.7 : -0.8, 0.9, 0.2);
+  heatArrow.setDirection(new THREE.Vector3(heatEnters ? 1 : -1, 0, 0));
   heatArrow.setLength(1.9, 0.9, 0.45);
+  heatLabel.position.set(-1.7, 1.35, 0.2);
+  heatLabel.visible = true;
+  setArrowLabel(heatLabel, isProblemAdiabatic ? 'Q = 0' : heatEnters ? 'Qᵢₙ' : 'Qₒᵤₜ');
 
   displacementArrow.position.set(0, -2.6, 0);
   displacementArrow.setDirection(new THREE.Vector3(0, 1, 0));
   displacementArrow.setLength(Math.max(1.1, 2.0 + (ratio - 1) * 1.6), 1.0, 0.5);
+  displacementLabel.position.set(0.65, -1.05, 0);
+  setArrowLabel(displacementLabel, expansion ? 'Wₒᵤₜ' : 'Wᵢₙ');
 
   const actualVolume = problemState.initialVolumeM3 * ratio;
   const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
@@ -592,14 +706,29 @@ const updateModel = () => {
       : isProblemIsochoric ? 'Isochoric: boundary work is zero because the piston is locked.'
       : isProblemIsobaric ? 'Isobaric: pressure remains constant while volume and temperature change.'
       : 'Polytropic: the displayed path follows PV^n = constant.';
-    workResult.innerHTML = `<strong>Boundary work (by gas):</strong> ${workKJ.toFixed(2)} kJ now; ${targetWorkForLabel.toFixed(2)} kJ at final volume.<br><span style="color:#5e5e63">${workMeaning}<br>${equilibriumSummary}<br>${heatSummary}${inferred}</span>`;
+    const finalPressure = problemState.initialPressureKPa * targetRatio ** -exponent;
+    const finalTemperature = isProblemAdiabatic ? problemState.temperatureK * targetRatio ** (1 - gamma)
+      : isProblemIsobaric ? problemState.temperatureK * targetRatio
+      : isProblemPolytropic ? problemState.temperatureK * targetRatio ** (1 - 1.3)
+      : problemState.temperatureK;
+    const requestedResult = problemState.requestedQuantity === 'final_pressure'
+      ? `<strong>Final pressure P₂:</strong> ${finalPressure.toFixed(2)} kPa.<br><span style="color:#5e5e63">For this ${problemState.process} path, the final-state relation gives P₂ = ${finalPressure.toFixed(2)} kPa.</span>`
+      : problemState.requestedQuantity === 'final_volume'
+        ? `<strong>Final volume V₂:</strong> ${problemState.finalVolumeM3.toFixed(5)} m³.<br><span style="color:#5e5e63">For this ${problemState.process} path, the final-state relation gives V₂ = ${problemState.finalVolumeM3.toFixed(5)} m³.</span>`
+      : problemState.requestedQuantity === 'final_temperature'
+        ? `<strong>Final temperature T₂:</strong> ${finalTemperature.toFixed(2)} K.<br><span style="color:#5e5e63">This follows the stated ${problemState.process} path.</span>`
+        : `<strong>Boundary work (by gas):</strong> ${workKJ.toFixed(2)} kJ now; ${targetWorkForLabel.toFixed(2)} kJ at final volume.<br><span style="color:#5e5e63">${workMeaning}<br>${equilibriumSummary}<br>${heatSummary}${inferred}</span>`;
+    workResult.innerHTML = requestedResult;
   }
   heatArrow.visible = !isProblemAdiabatic;
   heatArrow.setLength(1.2 + Math.min(1.5, Math.abs(workKJ) * 0.12), 0.55, 0.28);
   externalPressureArrow.position.set(2.2, pistonY + 1.4, 0);
   externalPressureArrow.setLength(1.0 + Math.min(1.4, externalPressure / problemState.initialPressureKPa * 1.4), 0.9, 0.42);
+  externalPressureLabel.position.set(2.2, pistonY + 0.7, 0);
+  setArrowLabel(externalPressureLabel, 'P₍ext₎');
   setProcessStage(ratio);
   drawPV(ratio);
+  drawTV(ratio);
 };
 
 volumeSlider.addEventListener('input', updateModel);
@@ -652,7 +781,7 @@ function animate() {
     const elapsed = lastAnimationTime ? (now - lastAnimationTime) / 1000 : 0;
     const targetRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
     const direction = targetRatio >= 1 ? 1 : -1;
-    const speed = problemState.quasiStatic ? 0.18 : 0.7;
+    const speed = problemState.quasiStatic ? 0.32 : 0.7;
     const next = Number(volumeSlider.value) + direction * speed * elapsed;
     const finished = direction > 0 ? next >= targetRatio : next <= targetRatio;
     volumeSlider.value = finished ? targetRatio : Math.max(Number(volumeSlider.min), Math.min(Number(volumeSlider.max), next));
@@ -680,5 +809,7 @@ const initialPrompt = new URLSearchParams(window.location.search).get('prompt');
 if (initialPrompt) {
   chatMessage('user', initialPrompt);
   handleAssistantPrompt(initialPrompt);
+  // Give the initial state one rendered frame before moving the piston.
+  if (lastParse && lastParse.problem) window.setTimeout(playMatchedProcess, 650);
 }
 animate();

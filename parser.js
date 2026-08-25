@@ -5,7 +5,7 @@
     if (!unit) return value; // assume liters
     unit = unit.replace(/\s+/g, '').toLowerCase();
     if (unit === 'l' || unit === 'liter' || unit === 'litre') return value;
-    if (unit === 'm3' || unit === 'm^3' || unit === 'm³') return value * 1000; // m^3 -> liters
+    if (unit === 'm3' || unit === 'm^3' || unit === 'm³' || unit.includes('meter') || unit.includes('metre')) return value * 1000; // m^3 -> liters
     if (unit === 'cm3' || unit === 'cm^3' || unit === 'cm³') return value * 0.001; // cm^3 -> liters
     return value; // fallback
   };
@@ -23,16 +23,26 @@
     const isochoric = /isochoric|constant volume/.test(s);
     const polytropic = /polytropic/.test(s);
     const quasiStaticExplicit = /quasi[\s-]*static|quasistatic/.test(s);
-    const pressure = s.match(/(\d+(?:\.\d+)?)\s*(mpa|kpa|pa)\b/);
-    const volumeMatches = [...s.matchAll(/(\d+(?:\.\d+)?)\s*(m\^?3|m³|cm\^?3|cm³|l|litre|liter)(?=$|[^a-z0-9])/g)];
+    const pressureMatches = [...s.matchAll(/(\d+(?:\.\d+)?)\s*(mpa|kpa|pa)\b/g)];
+    const volumeMatches = [...s.matchAll(/(\d+(?:\.\d+)?)\s*(m\^?3|m³|cm\^?3|cm³|(?:cubic\s*)?(?:meters?|metres?)\s*(?:cube|cubed)|l|litre|liter)(?=$|[^a-z0-9])/g)];
     const temperature = s.match(/(\d+(?:\.\d+)?)\s*k\b/);
     const temperatureCelsius = s.match(/(\d+(?:\.\d+)?)\s*(?:°|deg(?:ree)?s?\s*)c\b/);
-    if ((!isothermal && !adiabatic && !isobaric && !isochoric && !polytropic) || !pressure || volumeMatches.length < 2) return null;
+    if ((!isothermal && !adiabatic && !isobaric && !isochoric && !polytropic) || pressureMatches.length < 1 || volumeMatches.length < 1) return null;
 
-    const pressureValue = parseFloat(pressure[1]);
-    const pressureKPa = pressure[2] === 'mpa' ? pressureValue * 1000 : pressure[2] === 'pa' ? pressureValue / 1000 : pressureValue;
+    const pressureToKPa = (match) => {
+      const value = parseFloat(match[1]);
+      return match[2] === 'mpa' ? value * 1000 : match[2] === 'pa' ? value / 1000 : value;
+    };
+    const pressureKPa = pressureToKPa(pressureMatches[0]);
+    const statedFinalPressureKPa = pressureMatches.length > 1 ? pressureToKPa(pressureMatches[1]) : null;
     const initialVolumeM3 = toCubicMeters(parseFloat(volumeMatches[0][1]), volumeMatches[0][2]);
-    const finalVolumeM3 = toCubicMeters(parseFloat(volumeMatches[1][1]), volumeMatches[1][2]);
+    let finalVolumeM3 = volumeMatches.length > 1 ? toCubicMeters(parseFloat(volumeMatches[1][1]), volumeMatches[1][2]) : null;
+    // For an isothermal ideal gas, the supplied final pressure can define V2.
+    // This lets the visualizer answer pressure, volume, or work questions from
+    // the same PV = constant relation rather than requiring a fixed question form.
+    if (isothermal && !finalVolumeM3 && statedFinalPressureKPa > 0) {
+      finalVolumeM3 = pressureKPa * initialVolumeM3 / statedFinalPressureKPa;
+    }
     if (!(pressureKPa > 0 && initialVolumeM3 > 0 && finalVolumeM3 > 0)) return null;
     return {
       initialPressureKPa: pressureKPa,
@@ -43,6 +53,15 @@
       // isothermal boundary work is requested but no irreversible path is given.
       quasiStatic: true,
       quasiStaticInferred: !quasiStaticExplicit,
+      requestedQuantity: /work|work output|work input|work done/.test(s)
+        ? 'boundary_work'
+        : /(?:final|ending)\s+pressure|pressure\s+(?:at|in)\s+(?:the\s+)?final|find\s+(?:the\s+)?(?:final\s+)?pressure|\bp2\b/.test(s)
+          ? 'final_pressure'
+          : /(?:final|ending)\s+volume|volume\s+(?:at|in)\s+(?:the\s+)?final|find\s+(?:the\s+)?(?:final\s+)?volume|\bv2\b/.test(s)
+            ? 'final_volume'
+            : /(?:final|ending)\s+temperature|temperature\s+(?:at|in)\s+(?:the\s+)?final|find\s+(?:the\s+)?(?:final\s+)?temperature|\bt2\b/.test(s)
+              ? 'final_temperature'
+              : 'boundary_work',
       process: adiabatic ? 'adiabatic' : isobaric ? 'isobaric' : isochoric ? 'isochoric' : polytropic ? 'polytropic' : 'isothermal'
     };
   }
