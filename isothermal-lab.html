@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Isothermal Piston Lab</title>
+  <style>
+    :root { --ink:#17212b; --muted:#556270; --line:#dce5e9; --paper:#fffdf8; --teal:#167c80; --orange:#ef7d32; --blue:#2563a8; --green:#23834f; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:linear-gradient(135deg,#fff9ef,#eff8f6); color:var(--ink); font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1120px; margin:0 auto; padding:28px 20px 48px; }
+    header { display:flex; justify-content:space-between; gap:16px; align-items:baseline; margin-bottom:20px; }
+    h1 { margin:0; font-size:clamp(24px,4vw,36px); letter-spacing:-.04em; }
+    h2 { margin:0 0 10px; font-size:17px; }
+    a { color:var(--blue); font-weight:700; text-decoration:none; }
+    .intro { margin:7px 0 0; color:var(--muted); max-width:720px; line-height:1.5; }
+    .card { background:rgba(255,255,255,.88); border:1px solid var(--line); border-radius:18px; box-shadow:0 10px 28px rgba(31,48,56,.07); padding:18px; }
+    textarea { width:100%; min-height:100px; resize:vertical; border:1px solid #bfcdd2; border-radius:12px; padding:12px; color:var(--ink); background:#fff; font:inherit; line-height:1.45; }
+    .actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px; }
+    button { border:0; border-radius:10px; background:var(--teal); color:#fff; padding:10px 14px; font:inherit; font-weight:750; cursor:pointer; }
+    button.secondary { background:#e7eeee; color:var(--ink); }
+    button:focus-visible, textarea:focus-visible, input:focus-visible { outline:3px solid #8bd2cf; outline-offset:2px; }
+    .message { color:#9a3412; font-weight:650; line-height:1.45; }
+    .hidden { display:none!important; }
+    #lesson { margin-top:20px; }
+    .answer { border-left:6px solid var(--orange); padding:15px 16px; background:#fff8ed; border-radius:12px; }
+    .answer-label { color:#7a3e18; font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+    #answerValue { display:block; margin-top:4px; font-size:28px; letter-spacing:-.035em; }
+    #answerReason { display:block; margin-top:6px; color:#70411f; line-height:1.45; }
+    .states { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
+    .state { border:1px solid var(--line); border-radius:12px; padding:12px; background:#fff; }
+    .state h3 { margin:0 0 7px; font-size:13px; color:var(--muted); }
+    .state p { margin:4px 0; font-variant-numeric:tabular-nums; }
+    .visuals { display:grid; grid-template-columns:minmax(300px,1.15fr) minmax(280px,.85fr); gap:18px; margin-top:20px; }
+    .canvas-wrap { padding:12px; background:#f8fcfb; border:1px solid var(--line); border-radius:14px; }
+    canvas { width:100%; display:block; }
+    #pistonCanvas { height:390px; }
+    #pvCanvas,#tvCanvas { height:152px; }
+    .graph + .graph { margin-top:12px; }
+    .graph-title { margin:0 0 3px; color:var(--muted); font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; }
+    .playbar { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:12px; }
+    input[type="range"] { flex:1; min-width:180px; accent-color:var(--teal); }
+    #liveState { color:var(--muted); font-size:13px; font-weight:650; }
+    .rule { margin:16px 0 0; padding:12px; border-radius:12px; background:#edf7f6; color:#1d5759; line-height:1.5; }
+    @media (max-width:760px) { .visuals { grid-template-columns:1fr; } header { display:block; } header a { display:inline-block; margin-top:12px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div><h1>Isothermal Piston Lab</h1><p class="intro">One ideal-gas question, one visible process, one direct answer. Temperature is constant throughout.</p></div>
+      <a href="question-visualizer.html">Question Visualizer</a>
+    </header>
+
+    <section class="card">
+      <h2>Paste an isothermal ideal-gas piston-cylinder question</h2>
+      <textarea id="questionInput">An ideal gas initially occupies 0.04 m³ at 150 kPa. It undergoes an isothermal expansion until its pressure becomes 60 kPa. Find V₂.</textarea>
+      <div class="actions"><button id="loadButton" type="button">Build lesson</button><button id="sampleButton" class="secondary" type="button">Load sample</button><span id="message" class="message hidden" role="alert"></span></div>
+    </section>
+
+    <section id="lesson" class="hidden" aria-live="polite">
+      <div class="answer"><span class="answer-label">Requested answer</span><strong id="answerValue"></strong><span id="answerReason"></span></div>
+      <div class="states">
+        <article class="state"><h3>Initial state</h3><p id="initialState"></p></article>
+        <article class="state"><h3>Final state</h3><p id="finalState"></p></article>
+      </div>
+      <div class="visuals">
+        <section class="card"><h2>What is happening in the cylinder</h2><div class="canvas-wrap"><canvas id="pistonCanvas" aria-label="Animated piston-cylinder"></canvas></div><div class="playbar"><button id="replayButton" type="button">Replay process</button><input id="progress" type="range" min="0" max="1" value="0" step="0.01" aria-label="Process progress"><span id="liveState"></span></div></section>
+        <section class="card"><div class="graph"><p class="graph-title">Pressure–volume path</p><div class="canvas-wrap"><canvas id="pvCanvas" aria-label="Pressure-volume graph"></canvas></div></div><div class="graph"><p class="graph-title">Temperature–volume path</p><div class="canvas-wrap"><canvas id="tvCanvas" aria-label="Temperature-volume graph"></canvas></div></div><p class="rule">Isothermal ideal-gas relation: <strong>P₁V₁ = P₂V₂</strong>. The TV path is horizontal because T remains constant.</p></section>
+      </div>
+    </section>
+  </main>
+  <script src="isothermal-lab.js"></script>
+</body>
+</html>
