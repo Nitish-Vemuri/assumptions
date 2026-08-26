@@ -27,7 +27,9 @@
     if (!v2 && p2) v2 = p1 * v1 / p2;
     if (!p2 && v2) p2 = p1 * v1 / v2;
     if (!(p2 > 0 && v2 > 0)) return { error: 'Please include either a final pressure or a final volume so the other final-state value can be derived.' };
-    const target = asksWork ? 'work' : asksPressure ? 'pressure' : asksVolume ? 'volume' : 'pressure';
+    const explicitVolumeTarget = /find\s+(?:the\s+)?(?:final\s+)?(?:volume|v2)\b/.test(text);
+    const explicitPressureTarget = /find\s+(?:the\s+)?(?:final\s+)?(?:pressure|p2)\b/.test(text);
+    const target = asksWork ? 'work' : explicitVolumeTarget ? 'volume' : explicitPressureTarget ? 'pressure' : asksPressure ? 'pressure' : asksVolume ? 'volume' : 'pressure';
     const workKJ = p1 * v1 * Math.log(v2 / v1);
     return { p1, v1, p2, v2, workKJ, target };
   }
@@ -56,9 +58,15 @@
     ctx.strokeStyle = '#237e7f'; ctx.lineWidth = 7; ctx.strokeRect(width * .22, 50, width * .56, height - 100);
     ctx.fillStyle = '#243b53'; ctx.fillRect(width * .19, pistonY, width * .62, 17);
     ctx.fillStyle = '#243b53'; ctx.fillRect(width * .47, 27, width * .06, pistonY - 27);
-    ctx.strokeStyle = '#ef7d32'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(width * .14, pistonY + 85); ctx.lineTo(width * .14, pistonY + 25); ctx.stroke();
-    ctx.fillStyle = '#ef7d32'; ctx.beginPath(); ctx.moveTo(width * .14, pistonY + 15); ctx.lineTo(width * .11, pistonY + 33); ctx.lineTo(width * .17, pistonY + 33); ctx.fill();
-    ctx.fillStyle = '#2563a8'; ctx.font = '700 15px system-ui'; ctx.fillText('P₍gas₎', width * .04, pistonY + 105);
+    const pressureFalls = state.p2 < state.p1;
+    const arrowStart = pressureFalls ? pistonY + 25 : pistonY + 85;
+    const arrowEnd = pressureFalls ? pistonY + 85 : pistonY + 25;
+    ctx.strokeStyle = '#ef7d32'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(width * .14, arrowStart); ctx.lineTo(width * .14, arrowEnd); ctx.stroke();
+    ctx.fillStyle = '#ef7d32'; ctx.beginPath();
+    if (pressureFalls) { ctx.moveTo(width * .14, arrowEnd + 10); ctx.lineTo(width * .11, arrowEnd - 8); ctx.lineTo(width * .17, arrowEnd - 8); }
+    else { ctx.moveTo(width * .14, arrowEnd - 10); ctx.lineTo(width * .11, arrowEnd + 8); ctx.lineTo(width * .17, arrowEnd + 8); }
+    ctx.fill();
+    ctx.fillStyle = '#2563a8'; ctx.font = '700 15px system-ui'; ctx.fillText(pressureFalls ? 'P ↓' : 'P ↑', width * .04, pistonY + 105);
     ctx.fillStyle = '#167c80'; ctx.fillText('Qᵢₙ', width * .68, 78);
     ctx.fillStyle = '#17212b'; ctx.font = '700 16px system-ui'; ctx.fillText('T = constant', width * .34, height - 25);
   }
@@ -98,5 +106,8 @@
     $('finalState').textContent = `P₂ = ${format(state.p2)} kPa; V₂ = ${format(state.v2,5)} m³; T₂ = T₁`;
     progress.value = 0; render(); window.setTimeout(replay, 350);
   }
-  $('loadButton').addEventListener('click', load); $('sampleButton').addEventListener('click', () => { questionInput.value = 'A piston-cylinder contains an ideal gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the final pressure.'; load(); }); progress.addEventListener('input', () => { cancelAnimationFrame(animation); render(); }); window.addEventListener('resize', () => { if(state) render(); }); load();
+  $('loadButton').addEventListener('click', load); $('sampleButton').addEventListener('click', () => { questionInput.value = 'A piston-cylinder contains an ideal gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the final pressure.'; load(); }); $('replayButton').addEventListener('click', replay); progress.addEventListener('input', () => { cancelAnimationFrame(animation); render(); }); window.addEventListener('resize', () => { if(state) render(); });
+  const initialPrompt = new URLSearchParams(window.location.search).get('prompt');
+  if (initialPrompt) questionInput.value = initialPrompt;
+  load();
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -1,0 +1,12 @@
+const assert = require('assert');
+const { solveAdiabaticQuestion } = require('./adiabatic-lab.js');
+let r = solveAdiabaticQuestion('Air initially occupies 0.04 m3 at 150 kPa. It expands adiabatically until its pressure becomes 60 kPa. Find V2.');
+assert.strictEqual(r.target, 'volume');
+assert.ok(Math.abs(r.v2 - 0.07693) < 0.0001);
+r = solveAdiabaticQuestion('Air at 100 kPa and 0.2 m3 expands adiabatically to 0.4 m3. Find P2.');
+assert.strictEqual(r.target, 'pressure');
+assert.ok(Math.abs(r.p2 - 37.8929) < 0.001);
+r = solveAdiabaticQuestion('Air at 100 kPa and 0.2 m3 expands adiabatically to 0.4 m3. Find work done.');
+assert.strictEqual(r.target, 'work');
+assert.ok(r.workKJ > 0);
+console.log('adiabatic lab tests passed');

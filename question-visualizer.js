@@ -188,10 +188,10 @@ const getExplanation = (info = {}) => {
 
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
-  const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric'].includes(info.template);
-  if ((info.system === 'piston-cylinder system' && pistonProcess) || info.template === 'isothermal' || info.template === 'adiabatic') {
-    return `cylinder-3d.html?v=state-solver&prompt=${prompt}`;
-  }
+  if (info.template === 'isothermal') return `isothermal-lab.html?prompt=${prompt}`;
+  if (info.template === 'adiabatic') return `adiabatic-lab.html?prompt=${prompt}`;
+  const pistonProcess = ['isobaric', 'isochoric'].includes(info.template);
+  if (info.system === 'piston-cylinder system' && pistonProcess) return `cylinder-3d.html?v=state-solver&prompt=${prompt}`;
 
   const modelMap = {
     engine: 'second-law',
