@@ -196,6 +196,8 @@ let problemState = {
   quasiStatic: true,
   quasiStaticInferred: false,
   requestedQuantity: 'boundary_work',
+  requestedTarget: 'W',
+  polytropicExponent: 1.3,
   gasConstantKPaM3PerK: 0.04,
   process: 'isothermal'
 };
@@ -257,7 +259,7 @@ const drawPV = (ratio) => {
   ctx.beginPath(); ctx.moveTo(pad.left, pad.top); ctx.lineTo(pad.left, height - pad.bottom); ctx.lineTo(width - pad.right, height - pad.bottom); ctx.stroke();
   ctx.fillStyle = '#6e6e73'; ctx.font = '10px system-ui'; ctx.fillText('P', 9, 17); ctx.fillText('V', width - 12, height - 8);
   const currentV = v1 * ratio;
-  const exponent = problemState.process === 'adiabatic' ? 1.4 : problemState.process === 'polytropic' ? 1.3 : problemState.process === 'isobaric' ? 0 : 1;
+  const exponent = problemState.process === 'adiabatic' ? 1.4 : problemState.process === 'polytropic' ? problemState.polytropicExponent : problemState.process === 'isobaric' ? 0 : 1;
   ctx.strokeStyle = '#005bd1'; ctx.lineWidth = 2.5;
   if (problemState.process === 'isochoric') {
     ctx.beginPath(); ctx.moveTo(x(v1), pad.top); ctx.lineTo(x(v1), height - pad.bottom); ctx.stroke();
@@ -290,7 +292,7 @@ const drawTV = (ratio) => {
     const r = volume / v1;
     if (process === 'adiabatic') return t1 * r ** (1 - gamma);
     if (process === 'isobaric') return t1 * r;
-    if (process === 'polytropic') return t1 * r ** (1 - 1.3);
+    if (process === 'polytropic') return t1 * r ** (1 - problemState.polytropicExponent);
     return t1;
   };
   const t2 = temperatureAt(v2);
@@ -343,6 +345,23 @@ const configureProblem = (problem, sourceText = '') => {
   if (problemTitle) problemTitle.textContent = `${problemState.process[0].toUpperCase() + problemState.process.slice(1)} piston-cylinder model`;
   setTutorExplanation(problemState.process);
   updateModel();
+};
+
+const configureContract = (contract) => {
+  const { states, process, parameters, assumptions, target } = contract;
+  const targetMap = { P2: 'final_pressure', V2: 'final_volume', T2: 'final_temperature', W: 'boundary_work' };
+  configureProblem({
+    initialPressureKPa: states.P1,
+    initialVolumeM3: states.V1,
+    finalVolumeM3: states.V2,
+    temperatureK: states.T1 || 300,
+    process,
+    polytropicExponent: parameters.polytropicExponent || 1.3,
+    quasiStatic: assumptions.applied.includes('quasi_static'),
+    quasiStaticInferred: assumptions.defaults.includes('quasi_static'),
+    requestedQuantity: targetMap[target] || 'state_property',
+    requestedTarget: target || 'W'
+  }, contract.source);
 };
 
 const playMatchedProcess = () => {
@@ -451,6 +470,24 @@ const handleAssistantPrompt = (raw) => {
   if (!prompt) return;
 
   const lower = prompt.toLowerCase();
+
+  // Canonical question-to-model path. The shared rule engine builds a typed
+  // contract, solves the requested state/work value, then configures this one renderer.
+  if (typeof PistonCylinderRules !== 'undefined') {
+    const contract = PistonCylinderRules.solvePistonContract(
+      PistonCylinderRules.buildPistonContract(prompt, { classroomMode: true })
+    );
+    if (contract.result.status === 'solved') {
+      configureContract(contract);
+      const label = contract.target === 'W' ? 'boundary work' : contract.target;
+      chatMessage('bot', `Loaded the ${contract.process} model. Requested result: ${label} = ${contract.result.value.toFixed(3)} ${contract.result.units || ''}.`);
+      return;
+    }
+    if (contract.process && contract.result.status === 'insufficient_information') {
+      chatMessage('bot', `I need ${contract.result.missing.join(', ')} before I can build a reliable ${contract.process} model.`);
+      return;
+    }
+  }
 
   // If user asks model-building style prompts, try to parse parameters and apply to scene
   const buildTriggers = /build|draw|show|make|create|set|apply|model|visual/i;
@@ -611,11 +648,11 @@ const updateModel = () => {
   const isProblemIsochoric = currentProcess === 'isochoric';
   const isProblemPolytropic = currentProcess === 'polytropic';
   const gamma = 1.4;
-  const exponent = isProblemAdiabatic ? gamma : isProblemPolytropic ? 1.3 : isProblemIsobaric ? 0 : 1;
+  const exponent = isProblemAdiabatic ? gamma : isProblemPolytropic ? problemState.polytropicExponent : isProblemIsobaric ? 0 : 1;
   const pressure = problemState.initialPressureKPa * ratio ** -exponent;
   const temperature = isProblemAdiabatic ? problemState.temperatureK * ratio ** (1 - gamma)
     : isProblemIsobaric ? problemState.temperatureK * ratio
-    : isProblemPolytropic ? problemState.temperatureK * ratio ** (1 - 1.3)
+    : isProblemPolytropic ? problemState.temperatureK * ratio ** (1 - problemState.polytropicExponent)
     : problemState.temperatureK;
 
   // Keep the gas-pressure arrow outside the transparent wall so it remains visible.
@@ -709,9 +746,16 @@ const updateModel = () => {
     const finalPressure = problemState.initialPressureKPa * targetRatio ** -exponent;
     const finalTemperature = isProblemAdiabatic ? problemState.temperatureK * targetRatio ** (1 - gamma)
       : isProblemIsobaric ? problemState.temperatureK * targetRatio
-      : isProblemPolytropic ? problemState.temperatureK * targetRatio ** (1 - 1.3)
+      : isProblemPolytropic ? problemState.temperatureK * targetRatio ** (1 - problemState.polytropicExponent)
       : problemState.temperatureK;
-    const requestedResult = problemState.requestedQuantity === 'final_pressure'
+    const stateTargetValues = {
+      P1: [problemState.initialPressureKPa, 'kPa'], V1: [problemState.initialVolumeM3, 'm³'], T1: [problemState.temperatureK, 'K'],
+      P2: [finalPressure, 'kPa'], V2: [problemState.finalVolumeM3, 'm³'], T2: [finalTemperature, 'K']
+    };
+    const stateTarget = stateTargetValues[problemState.requestedTarget];
+    const requestedResult = stateTarget
+      ? `<strong>Requested ${problemState.requestedTarget}:</strong> ${stateTarget[0].toFixed(stateTarget[1] === 'm³' ? 5 : 2)} ${stateTarget[1]}.<br><span style="color:#5e5e63">The ${problemState.process} relation determines this state value from the values supplied in the question.</span>`
+      : problemState.requestedQuantity === 'final_pressure'
       ? `<strong>Final pressure P₂:</strong> ${finalPressure.toFixed(2)} kPa.<br><span style="color:#5e5e63">For this ${problemState.process} path, the final-state relation gives P₂ = ${finalPressure.toFixed(2)} kPa.</span>`
       : problemState.requestedQuantity === 'final_volume'
         ? `<strong>Final volume V₂:</strong> ${problemState.finalVolumeM3.toFixed(5)} m³.<br><span style="color:#5e5e63">For this ${problemState.process} path, the final-state relation gives V₂ = ${problemState.finalVolumeM3.toFixed(5)} m³.</span>`

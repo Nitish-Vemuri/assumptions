@@ -88,6 +88,10 @@
     const exponentMatch = text.match(/(?:n\s*=|exponent\s*(?:is|=)?)\s*(\d+(?:\.\d+)?)/);
     const gammaMatch = text.match(/(?:gamma|γ)\s*(?:is|=)?\s*(\d+(?:\.\d+)?)/);
     const assumptions = detectAssumptions(text, options);
+    if (options.classroomMode && target === 'W' && process !== 'isochoric' && !assumptions.applied.includes('quasi_static')) {
+      assumptions.defaults.push('quasi_static');
+      assumptions.applied.push('quasi_static');
+    }
     const gamma = gammaMatch ? Number(gammaMatch[1]) : assumptions.applied.includes('air_standard') ? 1.4 : options.gamma || null;
     const polytropicExponent = exponentMatch ? Number(exponentMatch[1]) : options.polytropicExponent || null;
     return {
@@ -186,6 +190,7 @@
     const hasValue = Number.isFinite(value);
     contract.derived = target && hasValue ? { [target]: value } : {};
     const missing = target === 'W' ? (hasValue ? [] : ['sufficient state values and quasi-static path']) : (target && !known(value) ? [target] : []);
+    if (!target) missing.push('requested quantity');
     if (process === 'adiabatic' && !known(parameters.gamma)) missing.push('gamma (or an air-standard assumption)');
     if (process === 'polytropic' && !known(parameters.polytropicExponent)) missing.push('polytropic exponent n');
     contract.result = { ...contract.result, status: missing.length ? 'insufficient_information' : 'solved', missing, value: hasValue ? value : null, units: target === 'W' ? 'kJ' : target && target.startsWith('P') ? 'kPa' : target && target.startsWith('V') ? 'm³' : target && target.startsWith('T') ? 'K' : null };

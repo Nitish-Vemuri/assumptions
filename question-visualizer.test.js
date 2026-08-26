@@ -18,7 +18,7 @@ assertEqual(iso.process, 'isothermal process', 'isothermal process name');
 
 const abbreviatedIso = parseQuestion('A piston-cylinder expands at constant temp.');
 assertEqual(abbreviatedIso.template, 'isothermal', 'constant temp detection');
-assertIncludes(getMatchedModelUrl(abbreviatedIso, 'constant temp'), 'isothermal-lab.html', 'constant temp route');
+assertIncludes(getMatchedModelUrl(abbreviatedIso, 'constant temp'), 'cylinder-3d.html', 'constant temp route');
 
 const adiabatic = parseQuestion('An ideal gas is compressed adiabatically. Explain what happens to pressure and temperature.');
 assertEqual(adiabatic.template, 'adiabatic', 'adiabatic detection');
@@ -42,7 +42,7 @@ assertIncludes(getExplanation(collision).formula, 'sum(p', 'collision formula');
 const orbit = parseQuestion('Find the orbital speed of a satellite in a circular orbit around Earth.');
 assertEqual(orbit.template, 'gravitation', 'gravitation detection');
 
-assertIncludes(getMatchedModelUrl(iso, 'isothermal from 2 L to 5 L'), 'isothermal-lab.html', 'isothermal route');
+assertIncludes(getMatchedModelUrl(iso, 'isothermal from 2 L to 5 L'), 'cylinder-3d.html', 'isothermal route');
 assertIncludes(getMatchedModelUrl(engine, 'heat engine'), 'model=second-law', 'engine route');
 assertIncludes(getMatchedModelUrl(collision, 'collision'), 'model=collisions', 'collision route');
 assertIncludes(getMatchedModelUrl(parseQuestion('A piston-cylinder expands isobarically.'), 'piston'), 'cylinder-3d.html', 'piston isobaric route');

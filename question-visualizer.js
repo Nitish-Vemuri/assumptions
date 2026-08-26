@@ -26,6 +26,9 @@ const parseQuestion = (text = '') => {
   } else if (hasAny(lower, ['isochoric', 'constant volume', 'volume remains constant'])) {
     process = 'isochoric process';
     template = 'isochoric';
+  } else if (lower.includes('polytropic')) {
+    process = 'polytropic process';
+    template = 'polytropic';
   } else if (hasAny(lower, ['heat engine', 'engine efficiency', 'maximum efficiency', 'carnot'])) {
     process = 'heat engine / efficiency problem';
     template = 'engine';
@@ -188,10 +191,8 @@ const getExplanation = (info = {}) => {
 
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
-  if (info.template === 'isothermal') return `isothermal-lab.html?prompt=${prompt}`;
-  if (info.template === 'adiabatic') return `adiabatic-lab.html?prompt=${prompt}`;
-  const pistonProcess = ['isobaric', 'isochoric'].includes(info.template);
-  if (info.system === 'piston-cylinder system' && pistonProcess) return `cylinder-3d.html?v=state-solver&prompt=${prompt}`;
+  const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
+  if (pistonProcess) return `cylinder-3d.html?v=unified-contract&prompt=${prompt}`;
 
   const modelMap = {
     engine: 'second-law',
@@ -210,7 +211,13 @@ const getModelReadiness = (text, info) => {
   if (info.template === 'general') {
     return { ready: false, message: 'I could not identify a supported physics process. Please name the process or describe the physical situation more clearly.' };
   }
-  if (info.system !== 'piston-cylinder system') return { ready: true, message: '' };
+  const thermalProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
+  if (info.system !== 'piston-cylinder system' && !thermalProcess) return { ready: true, message: '' };
+  if (typeof PistonCylinderRules !== 'undefined') {
+    const contract = PistonCylinderRules.solvePistonContract(PistonCylinderRules.buildPistonContract(text, { classroomMode: true }));
+    if (contract.result.status === 'solved') return { ready: true, message: '' };
+    return { ready: false, message: `To build this model, add: ${contract.result.missing.join(', ')}.` };
+  }
   const parsed = typeof parsePrompt === 'function' ? parsePrompt(text, {}) : null;
   if (parsed && parsed.problem) return { ready: true, message: '' };
   return {
