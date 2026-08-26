@@ -178,6 +178,8 @@
     .problem-title { margin: 0 0 8px; font-size: 14px; }
     .problem-copy { margin: 0 0 10px; color: var(--muted); font-size: 12px; line-height: 1.45; }
     .problem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .model-inputs { margin-top: 10px; }
+    .model-inputs summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; }
     .problem-field { font-size: 11px; color: var(--muted); }
     .problem-field input { width: 100%; margin-top: 4px; padding: 7px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; font: inherit; color: var(--ink); }
     .work-result { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,113,227,0.07); font-size: 13px; }
@@ -190,7 +192,7 @@
     .process-controls button { border: 0; border-radius: 9px; padding: 8px; cursor: pointer; font-weight: 700; background: #0071e3; color: #fff; }
     .process-controls button.secondary { background: #e5e5ea; color: #1d1d1f; }
     .process-stage { margin-top: 9px; font-size: 12px; font-weight: 700; color: #0057c2; }
-    .scene-key { position: absolute; z-index: 2; left: 18px; bottom: 18px; max-width: 245px; padding: 11px 12px; border-radius: 12px; background: rgba(255,255,255,0.88); border: 1px solid var(--line); font-size: 11px; line-height: 1.45; color: var(--muted); }
+    .scene-key { display: none; }
     .scene-key strong { color: var(--ink); display: block; margin-bottom: 4px; }
     #debugPanel { display: none; }
     .guide-panel { display: none; }
@@ -424,7 +426,10 @@
   <div class="problem-panel">
     <h2 id="problemTitle" class="problem-title">Piston-cylinder process model</h2>
     <p id="questionContext" class="question-context">Load a piston-cylinder question to create a matched process.</p>
-    <p class="problem-copy">For an ideal gas at constant temperature, pressure and volume are coupled: P·V = constant.</p>
+    <div id="workResult" class="work-result">Requested result: -</div>
+    <p id="processRuleText" class="problem-copy">Supported scope: introductory closed-system ideal-gas piston-cylinder problems. The matched process selects the applicable rule.</p>
+    <details class="model-inputs">
+      <summary>Explore or edit model values</summary>
     <div class="problem-grid">
       <label class="problem-field">Initial pressure P₁ (kPa)<input id="initialPressureInput" type="number" min="1" value="800" step="10"></label>
       <label class="problem-field">Initial volume V₁ (m³)<input id="initialVolumeInput" type="number" min="0.001" value="0.015" step="0.001"></label>
@@ -432,13 +437,13 @@
       <label class="problem-field">Temperature (K)<input id="temperatureInput" type="number" min="1" value="300" step="5" title="For a fixed amount of gas, changing temperature updates the initial pressure."></label>
     </div>
     <label class="quasi-toggle"><input id="quasiStaticToggle" type="checkbox" checked> Quasi-static (P<sub>gas</sub> ≈ P<sub>external</sub>)</label>
+    </details>
     <div class="process-controls">
       <button id="playProcessBtn" type="button">Play process</button>
       <button id="stepProcessBtn" class="secondary" type="button">Step forward</button>
       <button id="resetProcessBtn" class="secondary" type="button">Reset state</button>
     </div>
     <div id="processStage" class="process-stage">Initial state: inspect P₁, V₁, and T.</div>
-    <div id="workResult" class="work-result">Work output to V₂: —</div>
     <div class="graph-label">Pressure–volume path</div>
     <canvas id="pvCanvas" class="pv-canvas" aria-label="Pressure-volume diagram"></canvas>
     <div class="graph-label">Temperature–volume path</div>
@@ -488,8 +493,8 @@
 
   <script src="three.min.js"></script>
   <script src="OrbitControls.js"></script>
-  <script src="parser.js?v=unified-contract"></script>
-  <script src="piston-cylinder-rules.js?v=unified-contract"></script>
-  <script src="cylinder-3d.js?v=unified-contract"></script>
+  <script src="parser.js?v=trust-polish"></script>
+  <script src="piston-cylinder-rules.js?v=trust-polish"></script>
+  <script src="cylinder-3d.js?v=trust-polish"></script>
 </body>
 </html>

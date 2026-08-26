@@ -22,6 +22,13 @@ const cases = [
   ['frictionless capture', 'A frictionless piston contains an ideal gas at 100 kPa and 0.2 m3. It expands isothermally to 0.4 m3. Find P2.', 'P2', 50],
   ['MPa and litre', 'An ideal gas at 0.8 MPa and 15 L expands isothermally to 30 L. Find P2.', 'P2', 400],
   ['meter cube wording', 'A gas at 150 kPa and 0.04 meter cube expands isothermally to 60 kPa. Find V2.', 'V2', 0.1]
+  ,['isothermal T2', 'An ideal gas at 100 kPa and 0.1 m3 at 300 K expands isothermally to 0.2 m3. Find T2.', 'T2', 300]
+  ,['isobaric T2', 'A gas at 150 kPa and 0.1 m3 at 300 K expands isobarically to 0.2 m3. Find T2.', 'T2', 600]
+  ,['isobaric V1', 'A gas at 100 kPa has an unknown initial volume at 300 K. It expands isobarically to 0.4 m3 at 600 K. Find V1.', 'V1', 0.2]
+  ,['isochoric T2', 'A gas at 100 kPa and 0.2 m3 at 300 K is heated isochorically to 200 kPa. Find T2.', 'T2', 600]
+  ,['adiabatic T2', 'Air at 100 kPa and 0.2 m3 at 300 K expands reversibly and adiabatically to 0.4 m3. Find T2.', 'T2', 227.357]
+  ,['adiabatic stated gamma', 'A gas at 100 kPa and 0.2 m3 expands adiabatically with gamma = 1.3 to 0.4 m3. Find P2.', 'P2', 40.612]
+  ,['polytropic V1', 'An ideal gas has unknown initial volume at 80 kPa. It expands reversibly polytropically with n = 1.2 to 20 kPa and 0.4 m3. Find V1.', 'V1', 0.12599]
 ];
 
 for (const [name, text, target, expected] of cases) {
@@ -36,4 +43,7 @@ assert.ok(noGamma.result.missing.some((item) => item.includes('gamma')));
 const noPath = solve('An ideal gas at 100 kPa and 0.2 m3 expands isothermally to 0.4 m3. Find work.');
 assert.strictEqual(noPath.result.status, 'insufficient_information');
 assert.ok(noPath.result.requiredAssumptions.includes('quasi_static'));
-console.log(`piston-cylinder rules: ${cases.length + 2} curated cases passed`);
+const classroomWork = solvePistonContract(buildPistonContract('An ideal gas at 100 kPa and 0.2 m3 expands isothermally to 0.4 m3. Find work.', { classroomMode: true }));
+assert.strictEqual(classroomWork.result.status, 'solved');
+assert.ok(classroomWork.assumptions.defaults.includes('quasi_static'));
+console.log(`piston-cylinder rules: ${cases.length + 3} curated cases passed`);

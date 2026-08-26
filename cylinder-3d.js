@@ -23,6 +23,7 @@ const stepProcessBtn = document.getElementById('stepProcessBtn');
 const resetProcessBtn = document.getElementById('resetProcessBtn');
 const processStage = document.getElementById('processStage');
 const problemTitle = document.getElementById('problemTitle');
+const processRuleText = document.getElementById('processRuleText');
 
 const viewer = document.getElementById('viewer');
 const dbgProcess = document.getElementById('dbgProcess');
@@ -362,6 +363,9 @@ const configureContract = (contract) => {
     requestedQuantity: targetMap[target] || 'state_property',
     requestedTarget: target || 'W'
   }, contract.source);
+  if (processRuleText) {
+    processRuleText.textContent = `${contract.processRules.constraints.join('; ')}. ${contract.assumptions.applied.includes('ideal_gas') ? 'Ideal-gas model applied.' : ''}`;
+  }
 };
 
 const playMatchedProcess = () => {
