@@ -11,7 +11,7 @@ const hasAny = (text, words) => words.some((word) => text.includes(word));
 
 const parseQuestion = (text = '') => {
   const lower = String(text).toLowerCase();
-  const isRigidTank = /rigid\s+(?:tank|vessel|container)|sealed\s+rigid\s+(?:tank|vessel|container)/.test(lower);
+  const isRigidTank = !/piston|moving\s+boundary/.test(lower) && /(?:rigid|sealed|closed|fixed[-\s]?volume)\s+(?:tank|vessel|container)|\b(?:tank|vessel)\b/.test(lower);
 
   let process = 'general physics problem';
   let template = 'general';
@@ -198,7 +198,7 @@ const getExplanation = (info = {}) => {
 
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
-  if (info.template === 'rigid-tank') return `rigid-tank.html?v=rigid-tank-v1&prompt=${prompt}`;
+  if (info.template === 'rigid-tank') return `rigid-tank.html?v=rigid-tank-v3&prompt=${prompt}`;
   const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
   if (pistonProcess) return `cylinder-3d.html?v=trust-polish&prompt=${prompt}`;
 

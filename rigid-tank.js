@@ -20,6 +20,7 @@ const chatInput = document.getElementById('chatInput');
 const chatSend = document.getElementById('chatSend');
 
 const viewer = document.getElementById('viewer');
+const fallbackGas = document.getElementById('fallbackGas');
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xfff8ed);
 scene.fog = new THREE.Fog(0xfff8ed, 14, 30);
@@ -82,6 +83,9 @@ const drawPT=()=>{
 
 const updateModel=()=>{
   const state=currentState(); const heating=state.T>=model.T1; const pressureRatio=state.P/model.P1; const warmth=Math.min(1,Math.abs((state.T-model.T1)/(model.T2-model.T1||1)));
+  if (fallbackGas) fallbackGas.style.background=heating
+    ? `linear-gradient(180deg, rgba(245, ${Math.round(184 - warmth * 80)}, ${Math.round(77 - warmth * 35)}, .58), rgba(220, 83, 48, .85))`
+    : 'linear-gradient(180deg,rgba(91,158,210,.58),rgba(35,104,173,.85))';
   const gasColor=new THREE.Color(heating?0x42b8c5:0x42b8c5);
   gasColor.lerp(new THREE.Color(heating?0xf06449:0x347fb3),Math.max(.08,warmth*.82)); gasMaterial.color.copy(gasColor);
   gasMaterial.emissive.copy(new THREE.Color(heating?0xffa000:0x2f83bd)); gasMaterial.emissiveIntensity=.12+.2*warmth;

@@ -15,7 +15,11 @@
   const values = (text, pattern, convert) => [...text.matchAll(pattern)].map((match) => convert(Number(match[1]), match[2]));
   const known = (value) => Number.isFinite(value) && value > 0;
 
-  const isRigidTankQuestion = (text) => /rigid\s+(?:tank|vessel|container)|sealed\s+rigid\s+(?:tank|vessel|container)/i.test(String(text || ''));
+  const isRigidTankQuestion = (text) => {
+    const source = String(text || '');
+    return !/piston|moving\s+boundary/i.test(source)
+      && /(?:rigid|sealed|closed|fixed[-\s]?volume)\s+(?:tank|vessel|container)|\b(?:tank|vessel)\b/i.test(source);
+  };
 
   const detectTarget = (text) => {
     const lower = String(text || '').toLowerCase();
