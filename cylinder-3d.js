@@ -33,8 +33,8 @@ const dbgConfidence = document.getElementById('dbgConfidence');
 const dbgRaw = document.getElementById('dbgRaw');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xfff8ed);
-scene.fog = new THREE.Fog(0xfff8ed, 14, 30);
+scene.background = new THREE.Color(0xeaf5ff);
+scene.fog = new THREE.Fog(0xeaf5ff, 14, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -66,40 +66,40 @@ const cylinderGroup = new THREE.Group();
 scene.add(cylinderGroup);
 
 const wallMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x2e9a95,
-  roughness: 0.38,
-  metalness: 0.12,
+  color: 0x2e9fd1,
+  roughness: 0.28,
+  metalness: 0.18,
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 0.42
 });
 
 const gasMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x21b6c7,
-  roughness: 0.18,
-  metalness: 0.1,
+  color: 0x4fc3e6,
+  roughness: 0.14,
+  metalness: 0.12,
   transparent: true,
   opacity: 0.62
 });
 
 const pistonMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x2d2d31,
-  roughness: 0.26,
-  metalness: 0.8,
+  color: 0x2f5f93,
+  roughness: 0.22,
+  metalness: 0.72,
   clearcoat: 0.5
 });
 
 const baseMaterial = new THREE.MeshStandardMaterial({
-  color: 0x6d7580,
-  roughness: 0.68,
-  metalness: 0.3
+  color: 0x87a8c5,
+  roughness: 0.52,
+  metalness: 0.34
 });
 
 const openRingMaterial = new THREE.MeshStandardMaterial({
-  color: 0x243b53,
-  emissive: 0x071523,
-  roughness: 0.45,
-  metalness: 0.4
+  color: 0x315b8d,
+  emissive: 0x102d52,
+  roughness: 0.32,
+  metalness: 0.48
 });
 
 const cylinderMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.85, 2.85, 7.7, 64, 1, true), wallMaterial);
