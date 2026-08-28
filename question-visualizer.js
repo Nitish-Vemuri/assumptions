@@ -192,7 +192,7 @@ const getExplanation = (info = {}) => {
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
   const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
-  if (pistonProcess) return `cylinder-3d.html?v=reasoning-v1&prompt=${prompt}`;
+  if (pistonProcess) return `cylinder-3d.html?v=trust-polish&prompt=${prompt}`;
 
   const modelMap = {
     engine: 'second-law',
