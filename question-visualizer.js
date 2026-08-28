@@ -1,5 +1,6 @@
 const sampleQuestions = [
   'A piston-cylinder contains a gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the work done by the gas.',
+  'A rigid tank contains air at 100 kPa and 300 K. It is heated to 600 K. Find final pressure.',
   'A heat engine operates between 600 K and 300 K. Find its maximum efficiency.',
   'An ideal gas is compressed adiabatically. Explain what happens to pressure and temperature.',
   'A piston-cylinder system undergoes isobaric expansion at constant pressure while 400 J of heat is added.',
@@ -10,11 +11,15 @@ const hasAny = (text, words) => words.some((word) => text.includes(word));
 
 const parseQuestion = (text = '') => {
   const lower = String(text).toLowerCase();
+  const isRigidTank = /rigid\s+(?:tank|vessel|container)|sealed\s+rigid\s+(?:tank|vessel|container)/.test(lower);
 
   let process = 'general physics problem';
   let template = 'general';
 
-  if (hasAny(lower, ['isothermal', 'constant temperature', 'constant temp'])) {
+  if (isRigidTank) {
+    process = 'rigid-tank constant-volume process';
+    template = 'rigid-tank';
+  } else if (hasAny(lower, ['isothermal', 'constant temperature', 'constant temp'])) {
     process = 'isothermal process';
     template = 'isothermal';
   } else if (hasAny(lower, ['adiabatic', 'no heat', 'heat exchange'])) {
@@ -64,7 +69,8 @@ const parseQuestion = (text = '') => {
   }
 
   let system = template === 'general' ? 'physical system' : 'closed gas system';
-  if (lower.includes('piston')) system = 'piston-cylinder system';
+  if (isRigidTank) system = 'rigid tank system';
+  else if (lower.includes('piston')) system = 'piston-cylinder system';
   if (lower.includes('engine')) system = 'heat engine';
   if (lower.includes('reservoir')) system = 'thermal reservoir system';
   if (template === 'ramp') system = 'block and inclined surface';
@@ -102,6 +108,7 @@ const parseQuestion = (text = '') => {
   if (variables.length === 0) variables.push('Problem variables extracted from the question');
 
   const assumptions = ['ideal gas assumptions', 'closed system'];
+  if (template === 'rigid-tank') assumptions.push('rigid boundary: volume remains constant', 'boundary work is zero');
   if (template === 'isothermal') assumptions.push('temperature remains constant');
   if (template === 'adiabatic') assumptions.push('no heat exchange');
   if (template === 'engine') assumptions.push('heat flows between thermal reservoirs');
@@ -191,6 +198,7 @@ const getExplanation = (info = {}) => {
 
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
+  if (info.template === 'rigid-tank') return `rigid-tank.html?v=rigid-tank-v1&prompt=${prompt}`;
   const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
   if (pistonProcess) return `cylinder-3d.html?v=trust-polish&prompt=${prompt}`;
 
@@ -207,9 +215,23 @@ const getMatchedModelUrl = (info = {}, question = '') => {
   return `index.html?model=${modelMap[info.template] || 'thermo'}`;
 };
 
+const getRigidTankRules = () => {
+  if (typeof RigidTankRules !== 'undefined') return RigidTankRules;
+  if (typeof require === 'function') return require('./rigid-tank-rules.js');
+  return null;
+};
+
 const getModelReadiness = (text, info) => {
   if (info.template === 'general') {
     return { ready: false, message: 'I could not identify a supported physics process. Please name the process or describe the physical situation more clearly.' };
+  }
+  if (info.template === 'rigid-tank') {
+    const rules = getRigidTankRules();
+    if (!rules) return { ready: false, message: 'The rigid-tank rules did not load. Please refresh and try again.' };
+    const contract = rules.solveRigidTankContract(rules.buildRigidTankContract(text));
+    return contract.result.status === 'solved'
+      ? { ready: true, message: '' }
+      : { ready: false, message: `To build this rigid-tank model, add: ${contract.result.missing.join(', ')}.` };
   }
   const thermalProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
   if (info.system !== 'piston-cylinder system' && !thermalProcess) return { ready: true, message: '' };

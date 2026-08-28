@@ -20,6 +20,13 @@ const abbreviatedIso = parseQuestion('A piston-cylinder expands at constant temp
 assertEqual(abbreviatedIso.template, 'isothermal', 'constant temp detection');
 assertIncludes(getMatchedModelUrl(abbreviatedIso, 'constant temp'), 'cylinder-3d.html', 'constant temp route');
 
+const rigidTank = parseQuestion('A rigid tank contains air at 100 kPa and 300 K. It is heated to 600 K. Find final pressure.');
+assertEqual(rigidTank.template, 'rigid-tank', 'rigid tank detection');
+assertEqual(rigidTank.system, 'rigid tank system', 'rigid tank system detection');
+assertIncludes(getMatchedModelUrl(rigidTank, 'rigid tank'), 'rigid-tank.html', 'rigid tank route');
+assertEqual(getModelReadiness('A rigid tank contains air at 100 kPa and 300 K. It is heated to 600 K. Find final pressure.', rigidTank).ready, true, 'rigid tank readiness');
+assertEqual(getModelReadiness('A rigid tank contains air at 100 kPa. Find final pressure.', parseQuestion('A rigid tank contains air at 100 kPa. Find final pressure.')).ready, false, 'incomplete rigid tank is blocked');
+
 const adiabatic = parseQuestion('An ideal gas is compressed adiabatically. Explain what happens to pressure and temperature.');
 assertEqual(adiabatic.template, 'adiabatic', 'adiabatic detection');
 assertIncludes(adiabatic.assumptions.join(', '), 'no heat exchange', 'adiabatic assumptions');

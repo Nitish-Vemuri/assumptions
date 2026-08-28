@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rigid Tank Model</title>
+  <style>
+    :root { --ink:#1d1d1f; --muted:#5e5e63; --line:rgba(0,0,0,.08); --blue:#0071e3; }
+    * { box-sizing:border-box; }
+    html, body { margin:0; width:100%; height:100%; overflow:hidden; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif; color:var(--ink); background:linear-gradient(180deg,#fff9ef,#edf8f5); }
+    #viewer { position:absolute; inset:0; }
+    .panel { position:absolute; z-index:2; border:1px solid var(--line); border-radius:18px; background:rgba(255,255,255,.84); box-shadow:0 12px 30px rgba(0,0,0,.08); backdrop-filter:blur(14px); }
+    .problem { top:18px; left:18px; width:min(380px,calc(100vw - 36px)); max-height:calc(100vh - 36px); overflow:auto; padding:16px; }
+    .hud { top:18px; right:18px; width:min(300px,calc(100vw - 36px)); padding:16px; }
+    h1 { margin:0 0 8px; font-size:21px; letter-spacing:-.03em; }
+    h2 { margin:0 0 8px; font-size:14px; }
+    p { margin:0; }
+    .question { padding:9px 10px; border-radius:10px; background:rgba(0,0,0,.035); color:var(--muted); font-size:11px; line-height:1.45; }
+    .result { margin-top:10px; padding:10px; border-radius:10px; background:rgba(0,113,227,.07); font-size:13px; line-height:1.45; }
+    .rule { margin-top:10px; color:var(--muted); font-size:12px; line-height:1.45; }
+    details { margin-top:10px; }
+    summary { cursor:pointer; color:var(--muted); font-size:12px; font-weight:700; }
+    .fields { margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    label { color:var(--muted); font-size:11px; }
+    input[type=number] { width:100%; margin-top:4px; padding:7px; border:1px solid rgba(0,0,0,.12); border-radius:8px; color:var(--ink); font:inherit; }
+    .controls { margin-top:10px; display:grid; grid-template-columns:1fr 1fr; gap:7px; }
+    button { border:0; border-radius:9px; padding:9px; cursor:pointer; font:inherit; font-size:12px; font-weight:700; background:var(--blue); color:white; }
+    button.secondary { background:#e5e5ea; color:var(--ink); }
+    .stage { margin-top:9px; color:#0057c2; font-size:12px; font-weight:700; line-height:1.4; }
+    .graph-label { margin:10px 0 -5px; color:var(--muted); font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; }
+    #ptCanvas { width:100%; height:130px; margin-top:10px; border-radius:10px; background:#f7f7f8; }
+    .subtitle { color:var(--muted); font-size:13px; line-height:1.45; }
+    .slider-label { display:flex; justify-content:space-between; margin:14px 0 7px; font-size:12px; font-weight:700; }
+    input[type=range] { width:100%; accent-color:var(--blue); }
+    .stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
+    .stat { padding:10px; border:1px solid rgba(0,0,0,.05); border-radius:12px; background:rgba(0,0,0,.025); }
+    .name { color:var(--muted); font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+    .value { margin-top:5px; font-size:15px; font-weight:750; }
+    .status { display:inline-flex; align-items:center; gap:7px; margin-top:12px; padding:7px 10px; border-radius:999px; background:rgba(0,113,227,.08); font-size:12px; font-weight:700; }
+    .status::before { content:""; width:8px; height:8px; border-radius:50%; background:var(--blue); }
+    .chat { right:18px; bottom:18px; width:min(310px,calc(100vw - 36px)); padding:12px; }
+    .chat h2 { margin:0 0 8px; color:var(--muted); font-size:11px; letter-spacing:.06em; text-transform:uppercase; }
+    #chatWindow { max-height:115px; overflow:auto; padding:8px; border-radius:10px; background:rgba(0,0,0,.025); font-size:12px; line-height:1.45; }
+    .message { margin-bottom:7px; padding:7px 8px; border-radius:8px; }
+    .message.user { margin-left:20px; background:rgba(0,113,227,.1); }
+    .message.bot { background:rgba(0,0,0,.035); }
+    .chat-row { display:flex; gap:7px; margin-top:8px; }
+    #chatInput { min-width:0; flex:1; border:1px solid rgba(0,0,0,.1); border-radius:9px; padding:8px; font:inherit; font-size:12px; }
+    #chatSend { padding:8px 10px; }
+    @media (max-width:640px) { .problem { top:auto; bottom:10px; left:10px; max-height:63vh; } .hud { top:10px; right:10px; width:285px; } .chat { display:none; } }
+  </style>
+</head>
+<body>
+  <div id="viewer"></div>
+  <section class="panel problem">
+    <h2 id="modelTitle">Rigid-tank model</h2>
+    <p id="questionContext" class="question">Load a rigid-tank question to create a matched model.</p>
+    <div id="result" class="result">Requested result: -</div>
+    <p class="rule"><strong>Rigid-tank rule:</strong> volume is fixed, so boundary work is zero. For an ideal gas with fixed mass, P₁/T₁ = P₂/T₂.</p>
+    <details>
+      <summary>Explore or edit model values</summary>
+      <div class="fields">
+        <label>Initial pressure P₁ (kPa)<input id="p1Input" type="number" min="1" value="100" step="10"></label>
+        <label>Initial temperature T₁ (K)<input id="t1Input" type="number" min="1" value="300" step="5"></label>
+        <label>Final temperature T₂ (K)<input id="t2Input" type="number" min="1" value="600" step="5"></label>
+        <label>Tank volume (m³, optional)<input id="volumeInput" type="number" min="0.001" value="0.2" step="0.01"></label>
+      </div>
+    </details>
+    <div class="controls">
+      <button id="playBtn">Play heating/cooling</button>
+      <button id="stepBtn" class="secondary">Step forward</button>
+      <button id="resetBtn" class="secondary">Reset state</button>
+    </div>
+    <div id="stage" class="stage">Initial state: the sealed tank prevents any volume change.</div>
+    <div class="graph-label">Pressure–temperature path</div>
+    <canvas id="ptCanvas" aria-label="Pressure-temperature diagram"></canvas>
+  </section>
+  <section class="panel hud">
+    <h1>See the tank state</h1>
+    <p class="subtitle">The wall never moves. Heating or cooling changes gas particle activity, temperature, and pressure—not volume.</p>
+    <div class="slider-label"><span>Process state</span><strong id="stateLabel">Initial</strong></div>
+    <input id="stateSlider" type="range" min="0" max="1" step="0.01" value="0">
+    <div class="stats">
+      <div class="stat"><div class="name">Pressure</div><div class="value" id="pressureStat">100 kPa</div></div>
+      <div class="stat"><div class="name">Temperature</div><div class="value" id="temperatureStat">300 K</div></div>
+      <div class="stat"><div class="name">Volume</div><div class="value" id="volumeStat">constant</div></div>
+      <div class="stat"><div class="name">Boundary work</div><div class="value">0 kJ</div></div>
+    </div>
+    <div id="statePill" class="status">Rigid boundary: no piston motion</div>
+  </section>
+  <section class="panel chat">
+    <h2>Ask about this tank</h2>
+    <div id="chatWindow"><div class="message bot">Try a full rigid-tank question, or ask “why is work zero?”</div></div>
+    <div class="chat-row"><input id="chatInput" placeholder="Ask about the tank..." /><button id="chatSend">Send</button></div>
+  </section>
+  <script src="three.min.js"></script>
+  <script src="OrbitControls.js"></script>
+  <script src="rigid-tank-rules.js?v=rigid-tank-v1"></script>
+  <script src="rigid-tank.js?v=rigid-tank-v1"></script>
+</body>
+</html>

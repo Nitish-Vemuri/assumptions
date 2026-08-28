@@ -15,6 +15,10 @@ An interactive learning app that turns supported introductory piston-cylinder qu
 | `question-visualizer.test.js` | Checks question-to-model routing so supported prompts open correctly. |
 | `cylinder-3d.html` | The single student-facing piston-cylinder model screen. |
 | `cylinder-3d.js` | Renders the scene, graphs, animation, chat input, and calculated result. |
+| `rigid-tank.html` | Student-facing 3D rigid-tank model for constant-volume heating and cooling questions. |
+| `rigid-tank.js` | Renders the sealed tank, particle motion, heat cue, state animation, and pressure-temperature graph. |
+| `rigid-tank-rules.js` | Deterministic ideal-gas rigid-tank rules for pressure, temperature, and zero boundary work. |
+| `rigid-tank-rules.test.js` | Regression checks for rigid-tank calculations, units, and insufficient-data handling. |
 | `parser.js` | Extracts piston-cylinder wording, values, and units from natural-language input. |
 | `cylinder-3d-parser.test.js` | Verifies parser behavior for common wording and unit variants. |
 | `piston-cylinder-rules.js` | Canonical deterministic physics rules for the five supported piston-cylinder processes. |

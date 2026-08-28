@@ -33,8 +33,8 @@ const dbgConfidence = document.getElementById('dbgConfidence');
 const dbgRaw = document.getElementById('dbgRaw');
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xeaf5ff);
-scene.fog = new THREE.Fog(0xeaf5ff, 14, 30);
+scene.background = new THREE.Color(0xfff8ed);
+scene.fog = new THREE.Fog(0xfff8ed, 14, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -66,40 +66,40 @@ const cylinderGroup = new THREE.Group();
 scene.add(cylinderGroup);
 
 const wallMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x2e9fd1,
-  roughness: 0.28,
-  metalness: 0.18,
+  color: 0x2e9a95,
+  roughness: 0.38,
+  metalness: 0.12,
   side: THREE.DoubleSide,
   transparent: true,
   opacity: 0.42
 });
 
 const gasMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x4fc3e6,
-  roughness: 0.14,
-  metalness: 0.12,
+  color: 0x21b6c7,
+  roughness: 0.18,
+  metalness: 0.1,
   transparent: true,
   opacity: 0.62
 });
 
 const pistonMaterial = new THREE.MeshPhysicalMaterial({
-  color: 0x2f5f93,
-  roughness: 0.22,
-  metalness: 0.72,
+  color: 0x2d2d31,
+  roughness: 0.26,
+  metalness: 0.8,
   clearcoat: 0.5
 });
 
 const baseMaterial = new THREE.MeshStandardMaterial({
-  color: 0x87a8c5,
-  roughness: 0.52,
-  metalness: 0.34
+  color: 0x6d7580,
+  roughness: 0.68,
+  metalness: 0.3
 });
 
 const openRingMaterial = new THREE.MeshStandardMaterial({
-  color: 0x315b8d,
-  emissive: 0x102d52,
-  roughness: 0.32,
-  metalness: 0.48
+  color: 0x243b53,
+  emissive: 0x071523,
+  roughness: 0.45,
+  metalness: 0.4
 });
 
 const cylinderMesh = new THREE.Mesh(new THREE.CylinderGeometry(2.85, 2.85, 7.7, 64, 1, true), wallMaterial);
@@ -167,6 +167,12 @@ const setArrowLabel = (sprite, text) => {
   context.fillText(text, canvas.width / 2, canvas.height / 2 + 1);
   texture.needsUpdate = true;
   sprite.userData.text = text;
+};
+
+const setArrowLabelColor = (sprite, color) => {
+  if (sprite.userData.color === color) return;
+  sprite.userData.color = color;
+  sprite.userData.text = '';
 };
 
 const pressureLabel = makeArrowLabel('P₍gas₎', '#b42318');
@@ -659,6 +665,19 @@ const updateModel = () => {
     : isProblemPolytropic ? problemState.temperatureK * ratio ** (1 - problemState.polytropicExponent)
     : problemState.temperatureK;
 
+  // Color is a reading aid, not decoration: cool means pressure has fallen;
+  // warm means it has risen. The neutral tone is the initial state.
+  const pressureRatio = pressure / problemState.initialPressureKPa;
+  const pressureColor = new THREE.Color(0x21b6c7);
+  if (pressureRatio > 1) {
+    pressureColor.lerp(new THREE.Color(0xf06449), Math.min(1, (pressureRatio - 1) * 0.75));
+  } else {
+    pressureColor.lerp(new THREE.Color(0x72b7df), Math.min(1, (1 - pressureRatio) * 1.25));
+  }
+  gasMaterial.color.copy(pressureColor);
+  pressureArrow.setColor(pressureRatio > 1 ? 0xd9472f : pressureRatio < 1 ? 0x287bb7 : 0xff5a36);
+  setArrowLabelColor(pressureLabel, pressureRatio > 1 ? '#b42318' : pressureRatio < 1 ? '#1769aa' : '#b42318');
+
   // Keep the gas-pressure arrow outside the transparent wall so it remains visible.
   pressureArrow.position.set(-3.25, pistonY - 3.4, 0.4);
   pressureArrow.setLength(1.2 + Math.min(1.5, pressure / problemState.initialPressureKPa * 1.5), 1.0, 0.5);
@@ -668,6 +687,23 @@ const updateModel = () => {
 
   const expansion = problemState.finalVolumeM3 >= problemState.initialVolumeM3;
   const heatEnters = !isProblemAdiabatic && expansion;
+  if (heatEnters) {
+    gasMaterial.emissive.setHex(0xffb000);
+    gasMaterial.emissiveIntensity = 0.28;
+    heatArrow.setColor(0xe59a00);
+    setArrowLabelColor(heatLabel, '#a96700');
+  } else if (isProblemAdiabatic) {
+    gasMaterial.emissive.setHex(0x000000);
+    gasMaterial.emissiveIntensity = 0;
+    heatArrow.setColor(0x8a959e);
+    setArrowLabelColor(heatLabel, '#68737c');
+  } else {
+    gasMaterial.emissive.setHex(0x2f83bd);
+    gasMaterial.emissiveIntensity = 0.14;
+    heatArrow.setColor(0x2f83bd);
+    setArrowLabelColor(heatLabel, '#1769aa');
+  }
+
   heatArrow.position.set(heatEnters ? -2.7 : -0.8, 0.9, 0.2);
   heatArrow.setDirection(new THREE.Vector3(heatEnters ? 1 : -1, 0, 0));
   heatArrow.setLength(1.9, 0.9, 0.45);
