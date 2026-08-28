@@ -24,6 +24,9 @@ const resetProcessBtn = document.getElementById('resetProcessBtn');
 const processStage = document.getElementById('processStage');
 const problemTitle = document.getElementById('problemTitle');
 const processRuleText = document.getElementById('processRuleText');
+const givenValues = document.getElementById('givenValues');
+const derivationText = document.getElementById('derivationText');
+const observeText = document.getElementById('observeText');
 
 const viewer = document.getElementById('viewer');
 const dbgProcess = document.getElementById('dbgProcess');
@@ -189,6 +192,7 @@ const chatMessage = (role, text) => {
 // current process state (null | 'isothermal' | 'adiabatic')
 let currentProcess = null;
 let lastParse = null;
+let activeContract = null;
 let problemState = {
   initialPressureKPa: 800,
   initialVolumeM3: 0.015,
@@ -206,6 +210,60 @@ let processRunning = false;
 let lastAnimationTime = null;
 
 const finite = (value, fallback) => Number.isFinite(Number(value)) && Number(value) > 0 ? Number(value) : fallback;
+
+const displayNumber = (value, digits = 2) => Number(value).toFixed(digits).replace(/\.00$/, '');
+const displayState = (name, value) => {
+  const units = name.startsWith('P') ? ' kPa' : name.startsWith('V') ? ' m³' : ' K';
+  return `${name[0]}${name[1] === '1' ? '₁' : '₂'} = ${displayNumber(value, name.startsWith('V') ? 4 : 2)}${units}`;
+};
+
+const updateReasoning = (finalPressure, finalTemperature, finalWork) => {
+  if (!givenValues || !processRuleText || !derivationText || !observeText) return;
+  const sourceStates = activeContract && activeContract.sourceStates ? activeContract.sourceStates : {
+    P1: problemState.initialPressureKPa, V1: problemState.initialVolumeM3, T1: problemState.temperatureK,
+    P2: null, V2: problemState.finalVolumeM3, T2: null
+  };
+  const sourceParameters = activeContract && activeContract.sourceParameters ? activeContract.sourceParameters : {};
+  const given = Object.entries(sourceStates)
+    .filter(([, value]) => Number.isFinite(value) && value > 0)
+    .map(([name, value]) => displayState(name, value));
+  if (Number.isFinite(sourceParameters.gamma)) given.push(`γ = ${displayNumber(sourceParameters.gamma)}`);
+  if (Number.isFinite(sourceParameters.polytropicExponent)) given.push(`n = ${displayNumber(sourceParameters.polytropicExponent)}`);
+  givenValues.textContent = given.join('; ') || 'Use the values stated in the question.';
+
+  const process = problemState.process;
+  const exponent = process === 'adiabatic' ? 1.4 : process === 'polytropic' ? problemState.polytropicExponent : 1;
+  const rule = {
+    isothermal: 'T₁ = T₂ and P₁V₁ = P₂V₂',
+    adiabatic: `Q = 0 and P₁V₁^${displayNumber(exponent)} = P₂V₂^${displayNumber(exponent)}`,
+    isobaric: 'P₁ = P₂ and V₁/T₁ = V₂/T₂',
+    isochoric: 'V₁ = V₂ and Wboundary = 0',
+    polytropic: `P₁V₁^${displayNumber(exponent)} = P₂V₂^${displayNumber(exponent)}`
+  }[process] || 'Use the matched process relation.';
+  processRuleText.textContent = rule;
+
+  const target = problemState.requestedTarget || 'W';
+  const targetValue = { P1: problemState.initialPressureKPa, V1: problemState.initialVolumeM3, T1: problemState.temperatureK, P2: finalPressure, V2: problemState.finalVolumeM3, T2: finalTemperature, W: finalWork }[target];
+  const pressureExponent = process === 'isothermal' ? '' : process === 'adiabatic' ? 'γ' : 'n';
+  const derivation = {
+    P2: process === 'isobaric' ? `P₂ = P₁ = ${displayNumber(targetValue)} kPa` : `P₂ = P₁(V₁/V₂)${pressureExponent ? `^${pressureExponent}` : ''} = ${displayNumber(targetValue)} kPa`,
+    P1: process === 'isobaric' ? `P₁ = P₂ = ${displayNumber(targetValue)} kPa` : `P₁ = P₂(V₂/V₁)${pressureExponent ? `^${pressureExponent}` : ''} = ${displayNumber(targetValue)} kPa`,
+    V2: process === 'isochoric' ? 'V₂ = V₁' : `V₂ = V₁(P₁/P₂)^(1/n) = ${displayNumber(targetValue, 4)} m³`,
+    V1: process === 'isochoric' ? 'V₁ = V₂' : `V₁ = V₂(P₂/P₁)^(1/n) = ${displayNumber(targetValue, 4)} m³`,
+    T2: process === 'isothermal' ? `T₂ = T₁ = ${displayNumber(targetValue)} K` : `Apply the ${process} temperature relation: T₂ = ${displayNumber(targetValue)} K`,
+    T1: process === 'isothermal' ? `T₁ = T₂ = ${displayNumber(targetValue)} K` : `Apply the ${process} temperature relation: T₁ = ${displayNumber(targetValue)} K`,
+    W: process === 'isothermal' ? `W = P₁V₁ ln(V₂/V₁) = ${displayNumber(targetValue)} kJ` : process === 'isobaric' ? `W = P(V₂ − V₁) = ${displayNumber(targetValue)} kJ` : process === 'isochoric' ? 'Wboundary = 0 kJ because the piston cannot move.' : `Apply the ${process} boundary-work relation: W = ${displayNumber(targetValue)} kJ`
+  }[target] || 'The matched process relation gives the requested quantity.';
+  derivationText.textContent = derivation;
+
+  const expansion = problemState.finalVolumeM3 > problemState.initialVolumeM3;
+  const direction = expansion ? 'rises and the gas volume grows' : 'moves down and the gas volume shrinks';
+  const pressureTrend = process === 'isobaric' ? 'pressure stays constant' : expansion ? 'pressure falls' : 'pressure rises';
+  const temperatureTrend = process === 'isothermal' ? 'temperature stays constant' : process === 'adiabatic' ? expansion ? 'temperature falls because no heat enters' : 'temperature rises because no heat leaves' : process === 'isochoric' ? 'the piston stays locked' : 'follow the temperature point on the graph';
+  observeText.textContent = process === 'isochoric'
+    ? 'Watch: the piston is locked, so volume and boundary work stay zero; heat changes pressure and temperature instead.'
+    : `Watch: the piston ${direction}; ${pressureTrend}; ${temperatureTrend}.`;
+};
 
 const syncProblemInputs = () => {
   initialPressureInput.value = problemState.initialPressureKPa;
@@ -351,6 +409,13 @@ const configureProblem = (problem, sourceText = '') => {
 const configureContract = (contract) => {
   const { states, process, parameters, assumptions, target } = contract;
   const targetMap = { P2: 'final_pressure', V2: 'final_volume', T2: 'final_temperature', W: 'boundary_work' };
+  const sourceContract = typeof PistonCylinderRules !== 'undefined'
+    ? PistonCylinderRules.buildPistonContract(contract.source, { classroomMode: true })
+    : null;
+  activeContract = {
+    sourceStates: sourceContract ? sourceContract.states : states,
+    sourceParameters: sourceContract ? sourceContract.parameters : parameters
+  };
   configureProblem({
     initialPressureKPa: states.P1,
     initialVolumeM3: states.V1,
@@ -363,9 +428,6 @@ const configureContract = (contract) => {
     requestedQuantity: targetMap[target] || 'state_property',
     requestedTarget: target || 'W'
   }, contract.source);
-  if (processRuleText) {
-    processRuleText.textContent = `${contract.processRules.constraints.join('; ')}. ${contract.assumptions.applied.includes('ideal_gas') ? 'Ideal-gas model applied.' : ''}`;
-  }
 };
 
 const playMatchedProcess = () => {
@@ -767,6 +829,7 @@ const updateModel = () => {
         ? `<strong>Final temperature T₂:</strong> ${finalTemperature.toFixed(2)} K.<br><span style="color:#5e5e63">This follows the stated ${problemState.process} path.</span>`
         : `<strong>Boundary work (by gas):</strong> ${workKJ.toFixed(2)} kJ now; ${targetWorkForLabel.toFixed(2)} kJ at final volume.<br><span style="color:#5e5e63">${workMeaning}<br>${equilibriumSummary}<br>${heatSummary}${inferred}</span>`;
     workResult.innerHTML = requestedResult;
+    updateReasoning(finalPressure, finalTemperature, targetWorkForLabel);
   }
   heatArrow.visible = !isProblemAdiabatic;
   heatArrow.setLength(1.2 + Math.min(1.5, Math.abs(workKJ) * 0.12), 0.55, 0.28);

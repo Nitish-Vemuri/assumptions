@@ -43,7 +43,7 @@
       z-index: 2;
       top: 18px;
       right: 18px;
-      width: min(360px, calc(100vw - 36px));
+      width: min(300px, calc(100vw - 36px));
       background: var(--panel);
       backdrop-filter: blur(14px);
       -webkit-backdrop-filter: blur(14px);
@@ -115,7 +115,7 @@
 
     .legend {
       margin-top: 14px;
-      display: flex;
+      display: none;
       flex-wrap: wrap;
       gap: 8px;
       color: var(--muted);
@@ -166,7 +166,9 @@
       z-index: 3;
       top: 18px;
       left: 18px;
-      width: min(360px, calc(100vw - 36px));
+      width: min(390px, calc(100vw - 36px));
+      max-height: calc(100vh - 36px);
+      overflow: auto;
       padding: 16px;
       border: 1px solid var(--line);
       border-radius: 18px;
@@ -182,9 +184,18 @@
     .model-inputs summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; }
     .problem-field { font-size: 11px; color: var(--muted); }
     .problem-field input { width: 100%; margin-top: 4px; padding: 7px; border: 1px solid rgba(0,0,0,0.12); border-radius: 8px; font: inherit; color: var(--ink); }
-    .work-result { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,113,227,0.07); font-size: 13px; }
+    .work-result { margin-top: 10px; padding: 10px; border-radius: 10px; background: rgba(0,113,227,0.07); font-size: 13px; line-height: 1.45; }
+    .reasoning-card { margin-top: 10px; padding: 12px; border: 1px solid rgba(0,0,0,0.07); border-radius: 12px; background: rgba(255,255,255,0.68); }
+    .reasoning-card h3 { margin: 0 0 9px; font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+    .reasoning-row { padding: 8px 0; border-top: 1px solid rgba(0,0,0,0.06); font-size: 12px; line-height: 1.45; }
+    .reasoning-row:first-of-type { border-top: 0; padding-top: 0; }
+    .reasoning-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+    .reasoning-value { color: var(--ink); font-weight: 600; }
+    .observe-card { margin-top: 10px; padding: 9px 10px; border-left: 3px solid #0f766e; border-radius: 8px; background: rgba(15,118,110,.06); color: #164e4a; font-size: 12px; line-height: 1.45; }
     .pv-canvas { width: 100%; height: 120px; margin-top: 10px; border-radius: 10px; background: #f7f7f8; }
     .tv-canvas { width: 100%; height: 120px; margin-top: 10px; border-radius: 10px; background: #f7f7f8; }
+    .graphs { margin-top: 10px; }
+    .graphs summary { cursor: pointer; color: var(--muted); font-size: 12px; font-weight: 700; }
     .graph-label { margin: 10px 0 -5px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
     .quasi-toggle { display: flex; align-items: center; gap: 7px; margin-top: 10px; font-size: 12px; }
     .question-context { margin: 0 0 10px; padding: 9px 10px; border-radius: 10px; background: rgba(0,0,0,0.035); color: var(--muted); font-size: 11px; line-height: 1.4; }
@@ -378,7 +389,7 @@
 
       h1 { font-size: 20px; }
       .stats { grid-template-columns: 1fr 1fr; }
-      .problem-panel { top: auto; bottom: 10px; right: auto; left: 10px; max-height: 52vh; overflow: auto; }
+      .problem-panel { top: auto; bottom: 10px; right: auto; left: 10px; max-height: 64vh; overflow: auto; }
       .scene-key, .guide-panel { display: none; }
       .chat-box { display: none; }
     }
@@ -388,8 +399,8 @@
   <div id="viewer"></div>
 
   <div class="hud">
-    <h1>Piston-cylinder model</h1>
-    <p class="subtitle">The matched process plays from its initial state. You can use the slider afterward to replay it.</p>
+    <h1>See the process</h1>
+    <p class="subtitle">The animation illustrates the reasoning on the left. Play it, then drag the slider to inspect any state.</p>
 
     <div class="control-block">
       <div class="label-row">
@@ -427,7 +438,13 @@
     <h2 id="problemTitle" class="problem-title">Piston-cylinder process model</h2>
     <p id="questionContext" class="question-context">Load a piston-cylinder question to create a matched process.</p>
     <div id="workResult" class="work-result">Requested result: -</div>
-    <p id="processRuleText" class="problem-copy">Supported scope: introductory closed-system ideal-gas piston-cylinder problems. The matched process selects the applicable rule.</p>
+    <section class="reasoning-card" aria-label="Solution reasoning">
+      <h3>How this is solved</h3>
+      <div class="reasoning-row"><span class="reasoning-label">Given</span><span id="givenValues" class="reasoning-value">-</span></div>
+      <div class="reasoning-row"><span class="reasoning-label">Process rule</span><span id="processRuleText" class="reasoning-value">-</span></div>
+      <div class="reasoning-row"><span class="reasoning-label">Derive</span><span id="derivationText" class="reasoning-value">-</span></div>
+    </section>
+    <div id="observeText" class="observe-card">Watch the piston and the marked points move together as the process follows this rule.</div>
     <details class="model-inputs">
       <summary>Explore or edit model values</summary>
     <div class="problem-grid">
@@ -444,10 +461,13 @@
       <button id="resetProcessBtn" class="secondary" type="button">Reset state</button>
     </div>
     <div id="processStage" class="process-stage">Initial state: inspect P₁, V₁, and T.</div>
-    <div class="graph-label">Pressure–volume path</div>
+    <details class="graphs">
+      <summary>Show process graphs</summary>
+      <div class="graph-label">Pressure-volume path</div>
     <canvas id="pvCanvas" class="pv-canvas" aria-label="Pressure-volume diagram"></canvas>
     <div class="graph-label">Temperature–volume path</div>
     <canvas id="tvCanvas" class="tv-canvas" aria-label="Temperature-volume diagram"></canvas>
+    </details>
   </div>
 
   <div class="scene-key">
@@ -493,8 +513,8 @@
 
   <script src="three.min.js"></script>
   <script src="OrbitControls.js"></script>
-  <script src="parser.js?v=trust-polish"></script>
-  <script src="piston-cylinder-rules.js?v=trust-polish"></script>
-  <script src="cylinder-3d.js?v=trust-polish"></script>
+  <script src="parser.js?v=reasoning-v1"></script>
+  <script src="piston-cylinder-rules.js?v=reasoning-v1"></script>
+  <script src="cylinder-3d.js?v=reasoning-v1"></script>
 </body>
 </html>
