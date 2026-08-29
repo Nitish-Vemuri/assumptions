@@ -16,6 +16,9 @@
     isochoric: {
       constraints: ['V1 = V2', 'W_boundary = 0'], equations: ['P1 / T1 = P2 / T2'], heat: 'may_cross_boundary', piston: 'locked'
     },
+    piston_stops: {
+      constraints: ['Stage 1: P = constant until the piston reaches the stops', 'Stage 2: V = constant after the stops', 'Only stage 1 produces boundary work'], equations: ['V_stop / V1 = h_stop / h1', 'w_1 = R (T_stop - T1)'], heat: 'leaves_system', piston: 'moves_then_locks'
+    },
     polytropic: {
       constraints: ['P V^n = constant'], equations: ['P1 V1^n = P2 V2^n'], heat: 'depends_on_exponent', piston: 'moves', requires: ['polytropic_exponent']
     }
@@ -46,6 +49,7 @@
   const extract = (text, pattern, convert) => [...text.matchAll(pattern)].map((match) => convert(Number(match[1]), match[2]));
 
   function detectProcess(text) {
+    if (/piston.*\bstop|\bstop(?:s|ped)?\b.*piston/.test(text)) return 'piston_stops';
     if (/isothermal|constant temperature|constant temp/.test(text)) return 'isothermal';
     if (/adiabatic|no heat (?:transfer|exchange)|adiabat/.test(text)) return 'adiabatic';
     if (/isobaric|constant pressure|pressure remains constant/.test(text)) return 'isobaric';
@@ -88,6 +92,12 @@
     const exponentMatch = text.match(/(?:n\s*=|exponent\s*(?:is|=)?)\s*(\d+(?:\.\d+)?)/);
     const gammaMatch = text.match(/(?:gamma|γ)\s*(?:is|=)?\s*(\d+(?:\.\d+)?)/);
     const assumptions = detectAssumptions(text, options);
+    const stopHeightMatch = text.match(/stop(?:s)?\s+(?:located|is|are)?\s*(\d+(?:\.\d+)?)\s*m(?:eters?)?\s+above\s+(?:the\s+)?base/);
+    const pistonAboveStopsMatch = text.match(/piston\s+(?:is|starts?)\s*(\d+(?:\.\d+)?)\s*m(?:eters?)?\s+above\s+(?:the\s+)?stops?/);
+    const stopHeight = stopHeightMatch ? Number(stopHeightMatch[1]) : null;
+    const pistonAboveStops = pistonAboveStopsMatch ? Number(pistonAboveStopsMatch[1]) : null;
+    const stopVolumeRatio = Number.isFinite(stopHeight) && Number.isFinite(pistonAboveStops) && stopHeight > 0 && pistonAboveStops > 0 ? stopHeight / (stopHeight + pistonAboveStops) : null;
+    const gasConstantMatch = text.match(/(?:gas\s+constant|\br\b)\s*(?:=|is|of)?\s*(\d+(?:\.\d+)?)/);
     if (options.classroomMode && target === 'W' && process !== 'isochoric' && !assumptions.applied.includes('quasi_static')) {
       assumptions.defaults.push('quasi_static');
       assumptions.applied.push('quasi_static');
@@ -101,13 +111,22 @@
       target,
       states: {
         P1: target === 'P1' && pressures.length === 1 ? null : pressures[0] ?? null,
-        V1: target === 'V1' && volumes.length === 1 ? null : volumes[0] ?? null,
+        V1: process === 'piston_stops' ? 1 : (target === 'V1' && volumes.length === 1 ? null : volumes[0] ?? null),
         T1: target === 'T1' && temperatures.length === 1 ? null : temperatures[0] ?? null,
         P2: target === 'P1' && pressures.length === 1 ? pressures[0] : pressures[1] ?? null,
-        V2: target === 'V1' && volumes.length === 1 ? volumes[0] : volumes[1] ?? null,
+        V2: process === 'piston_stops' ? stopVolumeRatio : (target === 'V1' && volumes.length === 1 ? volumes[0] : volumes[1] ?? null),
         T2: target === 'T1' && temperatures.length === 1 ? temperatures[0] : temperatures[1] ?? null
       },
-      parameters: { gamma, polytropicExponent },
+      parameters: { gamma, polytropicExponent, stopHeight, pistonAboveStops, stopVolumeRatio, gasConstant: gasConstantMatch ? Number(gasConstantMatch[1]) : assumptions.applied.includes('air_standard') ? 0.287 : null, absoluteValueRequested: /absolute\s+value|magnitude/.test(text) },
+      scene: {
+        schema: 'piston-cylinder-scene/v1',
+        geometry: process === 'piston_stops'
+          ? { baseHeightM: 0, pistonInitialHeightM: stopHeight + pistonAboveStops, stops: [{ heightM: stopHeight }], dimensions: [{ from: 'base', to: 'stop', valueM: stopHeight }, { from: 'stop', to: 'piston_initial', valueM: pistonAboveStops }] }
+          : { baseHeightM: 0, pistonInitialHeightM: null, stops: [], dimensions: [] },
+        stages: process === 'piston_stops'
+          ? [{ id: 'move-to-stop', constraint: 'constant_pressure', endEvent: 'piston_contacts_stop', work: 'boundary_work' }, { id: 'cool-while-locked', constraint: 'constant_volume', endEvent: 'final_state', work: 'zero' }]
+          : process ? [{ id: 'main-process', constraint: process, endEvent: 'final_state', work: process === 'isochoric' ? 'zero' : 'boundary_work' }] : []
+      },
       assumptions,
       processRules: process ? PROCESS_RULES[process] : null,
       derived: {},
@@ -147,6 +166,32 @@
     const contract = copy(input);
     if (!contract.processRules) return contract;
     const { states, process, parameters } = contract;
+    if (process === 'piston_stops') {
+      const required = [states.P1, states.T1, states.T2, parameters.stopVolumeRatio, parameters.gasConstant];
+      const missing = [];
+      if (!known(states.P1) && contract.target !== 'W') missing.push('initial pressure');
+      if (!known(states.T1)) missing.push('initial temperature');
+      if (!known(states.T2)) missing.push('final temperature');
+      if (!known(parameters.stopVolumeRatio)) missing.push('stop height and initial piston height above the base');
+      if (!known(parameters.gasConstant)) missing.push('specific gas constant');
+      if (!contract.target) missing.push('requested quantity');
+      if (missing.length) {
+        contract.result = { status: 'insufficient_information', missing, value: null, units: null };
+        return contract;
+      }
+      const Tstop = states.T1 * parameters.stopVolumeRatio;
+      if (known(states.P1)) states.P2 = states.P1 * states.T2 / Tstop;
+      const signedSpecificWork = parameters.gasConstant * (Tstop - states.T1);
+      const value = parameters.absoluteValueRequested ? Math.abs(signedSpecificWork) : signedSpecificWork;
+      contract.derived = { Tstop, signedSpecificWork };
+      contract.result = {
+        status: contract.target === 'W' ? 'solved' : 'insufficient_information',
+        missing: contract.target === 'W' ? [] : ['this stop-limited rule currently solves specific boundary work'],
+        value: contract.target === 'W' ? value : null,
+        units: contract.target === 'W' ? 'kJ/kg' : null
+      };
+      return contract;
+    }
     let changed = true;
     while (changed) {
       changed = false;

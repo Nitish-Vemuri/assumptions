@@ -29,6 +29,7 @@ const cases = [
   ,['adiabatic T2', 'Air at 100 kPa and 0.2 m3 at 300 K expands reversibly and adiabatically to 0.4 m3. Find T2.', 'T2', 227.357]
   ,['adiabatic stated gamma', 'A gas at 100 kPa and 0.2 m3 expands adiabatically with gamma = 1.3 to 0.4 m3. Find P2.', 'P2', 40.612]
   ,['polytropic V1', 'An ideal gas has unknown initial volume at 80 kPa. It expands reversibly polytropically with n = 1.2 to 20 kPa and 0.4 m3. Find V1.', 'V1', 0.12599]
+  ,['piston stops specific work', 'A piston-cylinder arrangement has a stop located 2 m above the base. Initially, air is at 140 kPa and 350°C and the piston is 1 m above the stops. The system is cooled to 25°C. Air is treated as an ideal gas with R = 0.287 kJ/(kg K). Find the absolute value of specific work done.', 'W', 59.61468]
 ];
 
 for (const [name, text, target, expected] of cases) {
@@ -46,4 +47,8 @@ assert.ok(noPath.result.requiredAssumptions.includes('quasi_static'));
 const classroomWork = solvePistonContract(buildPistonContract('An ideal gas at 100 kPa and 0.2 m3 expands isothermally to 0.4 m3. Find work.', { classroomMode: true }));
 assert.strictEqual(classroomWork.result.status, 'solved');
 assert.ok(classroomWork.assumptions.defaults.includes('quasi_static'));
+const stopsContract = solve('A piston-cylinder arrangement has a stop located 2 m above the base. Initially, air is at 140 kPa and 350°C and the piston is 1 m above the stops. The system is cooled to 25°C. Find the absolute value of specific work done.', { classroomMode: true });
+assert.strictEqual(stopsContract.scene.schema, 'piston-cylinder-scene/v1');
+assert.strictEqual(stopsContract.scene.geometry.stops[0].heightM, 2);
+assert.strictEqual(stopsContract.scene.stages.length, 2);
 console.log(`piston-cylinder rules: ${cases.length + 3} curated cases passed`);

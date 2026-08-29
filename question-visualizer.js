@@ -12,11 +12,15 @@ const hasAny = (text, words) => words.some((word) => text.includes(word));
 const parseQuestion = (text = '') => {
   const lower = String(text).toLowerCase();
   const isRigidTank = !/piston|moving\s+boundary/.test(lower) && /(?:rigid|sealed|closed|fixed[-\s]?volume)\s+(?:tank|vessel|container)|\b(?:tank|vessel)\b/.test(lower);
+  const hasPistonStops = /piston.*\bstop|\bstop(?:s|ped)?\b.*piston/.test(lower);
 
   let process = 'general physics problem';
   let template = 'general';
 
-  if (isRigidTank) {
+  if (hasPistonStops) {
+    process = 'piston with stops: constant-pressure motion, then constant volume';
+    template = 'piston-stops';
+  } else if (isRigidTank) {
     process = 'rigid-tank constant-volume process';
     template = 'rigid-tank';
   } else if (hasAny(lower, ['isothermal', 'constant temperature', 'constant temp'])) {
@@ -199,7 +203,7 @@ const getExplanation = (info = {}) => {
 const getMatchedModelUrl = (info = {}, question = '') => {
   const prompt = encodeURIComponent(question);
   if (info.template === 'rigid-tank') return `rigid-tank.html?v=rigid-tank-v3&prompt=${prompt}`;
-  const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
+  const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic', 'piston-stops'].includes(info.template);
   if (pistonProcess) return `cylinder-3d.html?v=trust-polish&prompt=${prompt}`;
 
   const modelMap = {
@@ -221,6 +225,12 @@ const getRigidTankRules = () => {
   return null;
 };
 
+const getPistonRules = () => {
+  if (typeof PistonCylinderRules !== 'undefined') return PistonCylinderRules;
+  if (typeof require === 'function') return require('./piston-cylinder-rules.js');
+  return null;
+};
+
 const getModelReadiness = (text, info) => {
   if (info.template === 'general') {
     return { ready: false, message: 'I could not identify a supported physics process. Please name the process or describe the physical situation more clearly.' };
@@ -233,10 +243,11 @@ const getModelReadiness = (text, info) => {
       ? { ready: true, message: '' }
       : { ready: false, message: `To build this rigid-tank model, add: ${contract.result.missing.join(', ')}.` };
   }
-  const thermalProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic'].includes(info.template);
+  const thermalProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic', 'piston-stops'].includes(info.template);
   if (info.system !== 'piston-cylinder system' && !thermalProcess) return { ready: true, message: '' };
-  if (typeof PistonCylinderRules !== 'undefined') {
-    const contract = PistonCylinderRules.solvePistonContract(PistonCylinderRules.buildPistonContract(text, { classroomMode: true }));
+  const pistonRules = getPistonRules();
+  if (pistonRules) {
+    const contract = pistonRules.solvePistonContract(pistonRules.buildPistonContract(text, { classroomMode: true }));
     if (contract.result.status === 'solved') return { ready: true, message: '' };
     return { ready: false, message: `To build this model, add: ${contract.result.missing.join(', ')}.` };
   }

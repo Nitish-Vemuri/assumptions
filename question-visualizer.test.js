@@ -55,5 +55,8 @@ assertIncludes(getMatchedModelUrl(collision, 'collision'), 'model=collisions', '
 assertIncludes(getMatchedModelUrl(parseQuestion('A piston-cylinder expands isobarically.'), 'piston'), 'cylinder-3d.html', 'piston isobaric route');
 assertEqual(getModelReadiness('A vague question', parseQuestion('A vague question')).ready, false, 'unclear question is blocked');
 assertEqual(getModelReadiness('A heat engine operates between 600 K and 300 K.', engine).ready, true, 'known non-piston question is ready');
+const stops = parseQuestion('A piston-cylinder has a stop located 2 m above the base and the piston is 1 m above the stops. Air is initially at 140 kPa and cools from 350°C to 25°C. Find the absolute value of specific work done.');
+assertEqual(stops.template, 'piston-stops', 'piston stops detection');
+assertEqual(getModelReadiness('A piston-cylinder has a stop located 2 m above the base and the piston is 1 m above the stops. Air is initially at 140 kPa and cools from 350°C to 25°C. Find the absolute value of specific work done.', stops).ready, true, 'piston stops readiness');
 
 console.log('question visualizer tests passed');

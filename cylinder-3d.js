@@ -184,6 +184,19 @@ const axis = new THREE.AxesHelper(3.5);
 axis.position.set(0, -4.4, 0);
 scene.add(axis);
 
+// Contract-driven geometry: a stop ring and dimension guide are only shown
+// when the parsed scene declares a piston stop.
+const stopAnnotations = new THREE.Group();
+const stopRing = new THREE.Mesh(new THREE.TorusGeometry(2.7, 0.12, 16, 64), new THREE.MeshStandardMaterial({ color: 0xd97706, emissive: 0x5d3200, metalness: 0.35, roughness: 0.38 }));
+stopRing.rotation.x = Math.PI / 2;
+const stopGuide = new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-3.05, -3.85, 0), new THREE.Vector3(-3.05, -0.4, 0)]), new THREE.LineDashedMaterial({ color: 0xd97706, dashSize: 0.14, gapSize: 0.08 }));
+stopGuide.computeLineDistances();
+stopAnnotations.add(stopRing, stopGuide);
+stopAnnotations.visible = false;
+scene.add(stopAnnotations);
+const stopBaseDimensionLabel = makeArrowLabel('', '#9a5b00');
+const stopGapDimensionLabel = makeArrowLabel('', '#9a5b00');
+
 const chatMessage = (role, text) => {
   const node = document.createElement('div');
   node.className = `chat-message ${role}`;
@@ -278,6 +291,12 @@ const drawPV = (ratio) => {
     if (currentV >= v1 && problemState.quasiStatic) { ctx.beginPath(); ctx.moveTo(x(v1), height - pad.bottom); for (let i=0;i<=40;i++) { const v=v1+(currentV-v1)*i/40; ctx.lineTo(x(v), y(p1*(v1/v)**exponent)); } ctx.lineTo(x(currentV), height-pad.bottom); ctx.closePath(); ctx.fillStyle='rgba(0,91,209,0.16)'; ctx.fill(); }
   }
   ctx.beginPath(); ctx.arc(x(currentV), y(p1 * ratio ** -exponent), 4.5, 0, Math.PI * 2); ctx.fillStyle = '#ff5a36'; ctx.fill();
+  if (problemState.stopLimited) {
+    const Tstop = problemState.stopTemperatureK;
+    const finalPressure = p1 * problemState.finalLockedTemperatureK / Tstop;
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = '#d97706'; ctx.beginPath(); ctx.moveTo(x(problemState.finalVolumeM3), y(p1)); ctx.lineTo(x(problemState.finalVolumeM3), y(finalPressure)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#9a5b00'; ctx.fillText('stops: V constant', x(problemState.finalVolumeM3) + 5, y(finalPressure) - 6);
+  }
 };
 
 const drawTV = (ratio) => {
@@ -305,7 +324,7 @@ const drawTV = (ratio) => {
   const t2 = temperatureAt(v2);
   const minV = Math.min(v1, v2) * 0.88;
   const maxV = Math.max(v1, v2) * 1.12;
-  const minT = process === 'isochoric' ? t1 * 0.7 : Math.min(t1, t2) * 0.9;
+  const minT = problemState.stopLimited ? Math.min(t1, t2, problemState.finalLockedTemperatureK) * 0.9 : process === 'isochoric' ? t1 * 0.7 : Math.min(t1, t2) * 0.9;
   const maxT = process === 'isochoric' ? t1 * 1.3 : Math.max(t1, t2) * 1.1;
   const x = (volume) => pad.left + ((volume - minV) / (maxV - minV)) * (width - pad.left - pad.right);
   const y = (temperature) => height - pad.bottom - ((temperature - minT) / (maxT - minT)) * (height - pad.top - pad.bottom);
@@ -326,6 +345,10 @@ const drawTV = (ratio) => {
   const currentV = v1 * ratio;
   const currentT = temperatureAt(currentV);
   ctx.beginPath(); ctx.arc(x(currentV), y(currentT), 4.5, 0, Math.PI * 2); ctx.fillStyle = '#f97316'; ctx.fill();
+  if (problemState.stopLimited) {
+    ctx.setLineDash([4, 3]); ctx.strokeStyle = '#d97706'; ctx.beginPath(); ctx.moveTo(x(v2), y(t2)); ctx.lineTo(x(v2), y(problemState.finalLockedTemperatureK)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#9a5b00'; ctx.fillText('locked cooling', x(v2) + 5, y(problemState.finalLockedTemperatureK) - 6);
+  }
   if (process === 'isothermal') { ctx.fillStyle = '#0f766e'; ctx.fillText('T = constant', x(v1) + 6, y(t1) - 7); }
 };
 
@@ -355,20 +378,29 @@ const configureProblem = (problem, sourceText = '') => {
 };
 
 const configureContract = (contract) => {
-  const { states, process, parameters, assumptions, target } = contract;
+  const { states, process, parameters, assumptions, target, scene: contractScene } = contract;
   const targetMap = { P2: 'final_pressure', V2: 'final_volume', T2: 'final_temperature', W: 'boundary_work' };
+  const stopLimited = process === 'piston_stops';
   configureProblem({
     initialPressureKPa: states.P1,
-    initialVolumeM3: states.V1,
-    finalVolumeM3: states.V2,
+    // Stop locations give a volume ratio, not an absolute volume. Use a visual
+    // scale only; the rule engine keeps the physical answer on a mass basis.
+    initialVolumeM3: stopLimited ? 0.30 : states.V1,
+    finalVolumeM3: stopLimited ? 0.30 * states.V2 / states.V1 : states.V2,
     temperatureK: states.T1 || 300,
-    process,
+    process: stopLimited ? 'isobaric' : process,
     polytropicExponent: parameters.polytropicExponent || 1.3,
     quasiStatic: assumptions.applied.includes('quasi_static'),
     quasiStaticInferred: assumptions.defaults.includes('quasi_static'),
     requestedQuantity: targetMap[target] || 'state_property',
-    requestedTarget: target || 'W'
+    requestedTarget: target || 'W',
+    stopLimited,
+    sceneContract: contractScene || null,
+    stopTemperatureK: contract.derived && contract.derived.Tstop,
+    finalLockedTemperatureK: states.T2,
+    specificWorkKJPerKg: contract.result.value
   }, contract.source);
+  if (stopLimited && problemTitle) problemTitle.textContent = 'Piston with stops model';
   if (processRuleText) {
     processRuleText.textContent = `${contract.processRules.constraints.join('; ')}. ${contract.assumptions.applied.includes('ideal_gas') ? 'Ideal-gas model applied.' : ''}`;
   }
@@ -394,6 +426,12 @@ const updateProcessControls = () => {
 };
 
 const setProcessStage = (ratio) => {
+  if (problemState.stopLimited) {
+    const target = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+    if (ratio <= target + 0.005) processStage.textContent = `Piston reaches the stops: it is now locked. Cooling continues at constant volume to ${Math.round(problemState.finalLockedTemperatureK)} K, with no additional boundary work.`;
+    else processStage.textContent = 'Stage 1: cooling moves the piston down at constant pressure until it contacts the stops.';
+    return;
+  }
   if (problemState.process === 'isochoric') {
     processStage.textContent = 'Isochoric constraint: the piston is locked, volume is fixed, and boundary work is zero.';
     return;
@@ -652,6 +690,28 @@ const updateModel = () => {
   gasVolume.position.y = -3.2 + gasHeight / 2;
   piston.position.y = pistonY;
 
+  const stopGeometry = problemState.sceneContract && problemState.sceneContract.geometry;
+  const declaredStop = stopGeometry && stopGeometry.stops && stopGeometry.stops[0];
+  if (problemState.stopLimited && declaredStop) {
+    const stopRatio = problemState.finalVolumeM3 / problemState.initialVolumeM3;
+    const stopGasHeight = THREE.MathUtils.mapLinear(stopRatio, Number(volumeSlider.min), Number(volumeSlider.max), gasHeightMin, gasHeightMax);
+    const stopY = -3.2 + stopGasHeight + 0.5;
+    stopAnnotations.visible = true;
+    stopRing.position.y = stopY;
+    stopGuide.geometry.setFromPoints([new THREE.Vector3(-3.05, -3.85, 0), new THREE.Vector3(-3.05, stopY, 0)]);
+    stopGuide.computeLineDistances();
+    stopBaseDimensionLabel.visible = true;
+    stopGapDimensionLabel.visible = true;
+    stopBaseDimensionLabel.position.set(-3.75, (-3.85 + stopY) / 2, 0);
+    stopGapDimensionLabel.position.set(3.45, (stopY + pistonY) / 2, 0);
+    setArrowLabel(stopBaseDimensionLabel, `${declaredStop.heightM} m: base to stop`);
+    setArrowLabel(stopGapDimensionLabel, `${stopGeometry.pistonInitialHeightM - declaredStop.heightM} m: piston to stop`);
+  } else {
+    stopAnnotations.visible = false;
+    stopBaseDimensionLabel.visible = false;
+    stopGapDimensionLabel.visible = false;
+  }
+
   const isProblemIsothermal = currentProcess === 'isothermal';
   const isProblemAdiabatic = currentProcess === 'adiabatic';
   const isProblemIsobaric = currentProcess === 'isobaric';
@@ -803,6 +863,9 @@ const updateModel = () => {
         ? `<strong>Final temperature T₂:</strong> ${finalTemperature.toFixed(2)} K.<br><span style="color:#5e5e63">This follows the stated ${problemState.process} path.</span>`
         : `<strong>Boundary work (by gas):</strong> ${workKJ.toFixed(2)} kJ now; ${targetWorkForLabel.toFixed(2)} kJ at final volume.<br><span style="color:#5e5e63">${workMeaning}<br>${equilibriumSummary}<br>${heatSummary}${inferred}</span>`;
     workResult.innerHTML = requestedResult;
+  }
+  if (workResult && problemState.stopLimited) {
+    workResult.innerHTML = `<strong>Requested |specific work|:</strong> ${Math.abs(problemState.specificWorkKJPerKg).toFixed(2)} kJ/kg.<br><span style="color:#5e5e63">Stage 1: constant-pressure compression until the piston hits the stops. Stage 2: constant-volume cooling, so its boundary work is zero.</span>`;
   }
   heatArrow.visible = !isProblemAdiabatic;
   heatArrow.setLength(1.2 + Math.min(1.5, Math.abs(workKJ) * 0.12), 0.55, 0.28);
