@@ -1,10 +1,8 @@
 const sampleQuestions = [
   'A piston-cylinder contains a gas at 100 kPa and 0.4 m³. It is compressed isothermally to 0.1 m³. Find the work done by the gas.',
   'A rigid tank contains air at 100 kPa and 300 K. It is heated to 600 K. Find final pressure.',
-  'A heat engine operates between 600 K and 300 K. Find its maximum efficiency.',
   'An ideal gas is compressed adiabatically. Explain what happens to pressure and temperature.',
-  'A piston-cylinder system undergoes isobaric expansion at constant pressure while 400 J of heat is added.',
-  'A system experiences entropy change during a reversible process; calculate the entropy transfer.'
+  'A piston-cylinder system undergoes isobaric expansion at constant pressure while 400 J of heat is added.'
 ];
 
 const hasAny = (text, words) => words.some((word) => text.includes(word));
@@ -44,32 +42,6 @@ const parseQuestion = (text = '') => {
   } else if (hasAny(lower, ['entropy', 'second law', 'reversible process'])) {
     process = 'entropy and second-law process';
     template = 'entropy';
-  } else if (hasAny(lower, ['incline', 'ramp', 'friction', 'coefficient of friction'])) {
-    process = 'Newton’s laws with friction'; template = 'ramp';
-  } else if (hasAny(lower, ['projectile', 'launch angle', 'range of the projectile'])) {
-    process = 'two-dimensional projectile motion'; template = 'projectile';
-  } else if (hasAny(lower, ['free fall', 'falling object', 'terminal velocity'])) {
-    process = 'free-fall motion'; template = 'free-fall';
-  } else if (lower.includes('pendulum')) {
-    process = 'pendulum oscillation'; template = 'pendulum';
-  } else if (hasAny(lower, ['spring', 'simple harmonic motion', 'oscillation'])) {
-    process = 'mass-spring oscillation'; template = 'mass-spring';
-  } else if (hasAny(lower, ['collision', 'momentum', 'impulse'])) {
-    process = 'momentum and collision problem'; template = 'collisions';
-  } else if (hasAny(lower, ['centripetal', 'circular motion'])) {
-    process = 'uniform circular motion'; template = 'circular-motion';
-  } else if (hasAny(lower, ['torque', 'rotational inertia', 'angular acceleration'])) {
-    process = 'fixed-axis rotational motion'; template = 'rotation';
-  } else if (hasAny(lower, ['static equilibrium', 'equilibrium', 'beam', 'lever'])) {
-    process = 'static equilibrium'; template = 'statics';
-  } else if (hasAny(lower, ['orbit', 'orbital', 'gravitation', 'gravity'])) {
-    process = 'gravitation and orbital motion'; template = 'gravitation';
-  } else if (hasAny(lower, ['fluid', 'buoyancy', 'bernoulli', 'hydrostatic'])) {
-    process = 'fluid mechanics'; template = 'fluids';
-  } else if (hasAny(lower, ['position', 'velocity', 'acceleration', 'constant acceleration'])) {
-    process = 'one-dimensional kinematics'; template = 'kinematics-1d';
-  } else if (hasAny(lower, ['work', 'kinetic energy', 'potential energy', 'conservation of energy'])) {
-    process = 'work and energy'; template = 'work-energy';
   }
 
   let system = template === 'general' ? 'physical system' : 'closed gas system';
@@ -77,13 +49,6 @@ const parseQuestion = (text = '') => {
   else if (lower.includes('piston')) system = 'piston-cylinder system';
   if (lower.includes('engine')) system = 'heat engine';
   if (lower.includes('reservoir')) system = 'thermal reservoir system';
-  if (template === 'ramp') system = 'block and inclined surface';
-  if (template === 'collisions') system = 'two-object collision system';
-  if (template === 'circular-motion') system = 'object in circular motion';
-  if (template === 'rotation') system = 'rigid body about a fixed axis';
-  if (template === 'statics') system = 'rigid body in equilibrium';
-  if (template === 'gravitation') system = 'central body and orbiting object';
-  if (template === 'fluids') system = 'fluid system';
 
   let target = 'work, pressure, or energy';
   if (hasAny(lower, ['efficiency', 'maximum efficiency', 'η'])) {
@@ -119,13 +84,6 @@ const parseQuestion = (text = '') => {
   if (template === 'isobaric') assumptions.push('pressure remains constant');
   if (template === 'isochoric') assumptions.push('volume remains constant');
   if (template === 'entropy') assumptions.push('reversible or near-equilibrium path');
-  if (template === 'ramp') assumptions.push('uniform gravitational field');
-  if (template === 'collisions') assumptions.push('negligible external impulse');
-  if (template === 'circular-motion') assumptions.push('constant speed and radius');
-  if (template === 'rotation') assumptions.push('fixed rotation axis');
-  if (template === 'statics') assumptions.push('net force and net torque are zero');
-  if (template === 'gravitation') assumptions.push('Newtonian two-body approximation');
-  if (template === 'fluids') assumptions.push('steady incompressible flow');
 
   return { process, system, target, variables, assumptions, template };
 };
@@ -206,17 +164,7 @@ const getMatchedModelUrl = (info = {}, question = '') => {
   const pistonProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic', 'piston-stops'].includes(info.template);
   if (pistonProcess) return `cylinder-3d.html?v=trust-polish&prompt=${prompt}`;
 
-  const modelMap = {
-    engine: 'second-law',
-    entropy: 'second-law',
-    isobaric: 'thermo',
-    isochoric: 'thermo',
-    ramp: 'ramp', projectile: 'projectile', 'free-fall': 'free-fall', pendulum: 'pendulum', 'mass-spring': 'mass-spring',
-    collisions: 'collisions', 'circular-motion': 'circular-motion', rotation: 'rotation', statics: 'statics',
-    gravitation: 'gravitation', fluids: 'fluids', 'kinematics-1d': 'kinematics-1d', 'work-energy': 'work-energy',
-    general: 'thermo'
-  };
-  return `index.html?model=${modelMap[info.template] || 'thermo'}`;
+  return null;
 };
 
 const getRigidTankRules = () => {
@@ -235,6 +183,9 @@ const getModelReadiness = (text, info) => {
   if (info.template === 'general') {
     return { ready: false, message: 'I could not identify a supported physics process. Please name the process or describe the physical situation more clearly.' };
   }
+  if (info.template === 'engine' || info.template === 'entropy') {
+    return { ready: false, message: 'This catalog currently supports piston-cylinder and rigid-tank models. Heat-engine and entropy visualizations are not available yet.' };
+  }
   if (info.template === 'rigid-tank') {
     const rules = getRigidTankRules();
     if (!rules) return { ready: false, message: 'The rigid-tank rules did not load. Please refresh and try again.' };
@@ -244,7 +195,7 @@ const getModelReadiness = (text, info) => {
       : { ready: false, message: `To build this rigid-tank model, add: ${contract.result.missing.join(', ')}.` };
   }
   const thermalProcess = ['isothermal', 'adiabatic', 'isobaric', 'isochoric', 'polytropic', 'piston-stops'].includes(info.template);
-  if (info.system !== 'piston-cylinder system' && !thermalProcess) return { ready: true, message: '' };
+  if (info.system !== 'piston-cylinder system' && !thermalProcess) return { ready: false, message: 'This catalog currently supports piston-cylinder and rigid-tank models. Describe one of those systems to open a model.' };
   const pistonRules = getPistonRules();
   if (pistonRules) {
     const contract = pistonRules.solvePistonContract(pistonRules.buildPistonContract(text, { classroomMode: true }));

@@ -1,0 +1,31 @@
+'use strict';
+const test=require('node:test'), assert=require('node:assert/strict');
+const E=require('./teaching-engine'), {createServer,interpret}=require('./teaching-server');
+const near=(a,b)=>assert.ok(Math.abs(a-b)<=1e-8*Math.max(1,Math.abs(b)),`${a} != ${b}`);
+const edit=(m,process,changes={})=>E.apply(m,{action:'edit',process,changes});
+test('500 → 200 kPa initial edit keeps endpoint and derives all outputs',()=>{const m=edit(E.defaults,null,{P1:200}),f=E.solve(m);near(f.P2,200);near(f.T2,450);near(f.V2,.045);near(f.W,3);});
+test('isobaric → isochoric locks all samples and conserves energy',()=>{const m=edit(E.defaults,'isochoric'),f=E.solve(m);near(f.P2,750);near(f.V2,.03);near(f.W,0);for(let i=0;i<=100;i++){const s=E.sample(m,i/100);near(s.V,m.V1);near(s.W,0);near(s.P*s.V/s.T,m.P1*m.V1/m.T1);near(s.Q,s.deltaU);}});
+test('isothermal compression textbook answer and constant T',()=>{const m={...E.defaults,process:'isothermal',P1:100,V1:.4,T1:353.15,endpoint:{quantity:'V2',value:.1}};near(E.solve(m).W,40*Math.log(.25));near(E.solve(m).P2,400);for(let i=0;i<=20;i++)near(E.sample(m,i/20).T,353.15);});
+test('reversible adiabatic conserves energy with Q zero',()=>{const m={...E.defaults,process:'adiabatic',endpoint:{quantity:'V2',value:.06}};for(let i=0;i<=20;i++){const s=E.sample(m,i/20);near(s.Q,0);near(s.P*s.V**m.gamma,m.P1*m.V1**m.gamma);}});
+test('polytropic n=1 equals isothermal and pressure endpoint solves',()=>{const m={...E.defaults,process:'polytropic',n:1,endpoint:{quantity:'P2',value:200}},f=E.solve(m);near(f.V2,.075);near(f.T2,300);near(f.W,15*Math.log(2.5));});
+test('conflicts and invalid inputs do not mutate current model',()=>{const m=structuredClone(E.defaults),before=JSON.stringify(m);assert.throws(()=>edit(m,'isochoric',{V2:.06,T2:450}),/conflicts/);assert.throws(()=>edit(m,null,{P1:-20}));assert.throws(()=>edit(m,'isobaric',{P2:200}),/fixed/);assert.throws(()=>edit(m,'adiabatic',{gamma:1}));assert.equal(JSON.stringify(m),before);});
+test('changing process discards incompatible endpoint',()=>{const a=edit(E.defaults,'isothermal'),b=edit(a,'isochoric');near(E.solve(a).T2,300);near(E.solve(a).V2,.045);near(E.solve(b).V2,.03);near(E.solve(b).T2,300);});
+test('structured interpreter request and refusal handling',async()=>{const command={action:'edit',process:'isochoric',message:'Switch process.',changes:Object.fromEntries(E.fields.map(k=>[k,null]))};const result=await interpret({text:'Switch to isochoric'},async(url,req)=>{assert.equal(url,'https://api.openai.com/v1/responses');const data=JSON.parse(req.body);assert.equal(data.store,false);assert.equal(data.text.format.strict,true);return {ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(command)}]}]})};});assert.equal(result.process,'isochoric');await assert.rejects(()=>interpret({},async()=>({ok:true,json:async()=>({status:'completed',output:[{content:[{type:'refusal'}]}]})})),/declined/);});
+test('HTTP security, missing key, atomic edit and upstream failure',async()=>{
+ const old=process.env.OPENAI_API_KEY;delete process.env.OPENAI_API_KEY;
+ let fail=false;
+ const command={action:'edit',process:'isochoric',message:'Changed.',changes:Object.fromEntries(E.fields.map(k=>[k,null]))};
+ const server=createServer(async()=>fail?{ok:false,status:429}:{ok:true,json:async()=>({status:'completed',output:[{content:[{type:'output_text',text:JSON.stringify(command)}]}]})});
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${server.address().port}`;
+ try{const status=await (await fetch(base+'/api/status')).json();assert.equal(status.configured,false);
+ const headers={'Content-Type':'application/json','X-Teaching-Token':status.token};const body=JSON.stringify({text:'Switch to isochoric',mode:'edit-example',model:E.defaults,history:[]});
+ assert.equal((await fetch(base+'/.env')).status,404);assert.equal((await fetch(base+'/teaching-server.js')).status,404);
+ assert.equal((await fetch(base+'/api/command',{method:'POST',body,headers})).status,503);
+ process.env.OPENAI_API_KEY='test-only';
+ assert.equal((await fetch(base+'/api/command',{method:'POST',body,headers:{...headers,Origin:'https://example.com'}})).status,403);
+ assert.equal((await fetch(base+'/api/command',{method:'POST',body,headers:{'Content-Type':'application/json'}})).status,403);
+ const response=await fetch(base+'/api/command',{method:'POST',body,headers});assert.equal(response.status,200);const data=await response.json();near(E.solve(data.model).W,0);
+ fail=true;assert.equal((await fetch(base+'/api/command',{method:'POST',body,headers})).status,502);
+ assert.equal((await fetch(base+'/teaching.html')).status,200);
+ }finally{await new Promise(resolve=>server.close(resolve));if(old===undefined)delete process.env.OPENAI_API_KEY;else process.env.OPENAI_API_KEY=old;}
+});

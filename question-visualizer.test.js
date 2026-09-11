@@ -42,19 +42,11 @@ assertEqual(entropy.target, 'entropy', 'entropy target');
 const explanation = getExplanation({ template: 'isothermal' });
 assertIncludes(explanation.formula, 'ln', 'isothermal formula includes natural log');
 
-const collision = parseQuestion('Two carts collide elastically. Find their final velocities using momentum conservation.');
-assertEqual(collision.template, 'collisions', 'collision detection');
-assertIncludes(getExplanation(collision).formula, 'sum(p', 'collision formula');
-
-const orbit = parseQuestion('Find the orbital speed of a satellite in a circular orbit around Earth.');
-assertEqual(orbit.template, 'gravitation', 'gravitation detection');
-
 assertIncludes(getMatchedModelUrl(iso, 'isothermal from 2 L to 5 L'), 'cylinder-3d.html', 'isothermal route');
-assertIncludes(getMatchedModelUrl(engine, 'heat engine'), 'model=second-law', 'engine route');
-assertIncludes(getMatchedModelUrl(collision, 'collision'), 'model=collisions', 'collision route');
+assertEqual(getMatchedModelUrl(engine, 'heat engine'), null, 'unsupported engine route');
 assertIncludes(getMatchedModelUrl(parseQuestion('A piston-cylinder expands isobarically.'), 'piston'), 'cylinder-3d.html', 'piston isobaric route');
 assertEqual(getModelReadiness('A vague question', parseQuestion('A vague question')).ready, false, 'unclear question is blocked');
-assertEqual(getModelReadiness('A heat engine operates between 600 K and 300 K.', engine).ready, true, 'known non-piston question is ready');
+assertEqual(getModelReadiness('A heat engine operates between 600 K and 300 K.', engine).ready, false, 'unsupported engine is blocked');
 const stops = parseQuestion('A piston-cylinder has a stop located 2 m above the base and the piston is 1 m above the stops. Air is initially at 140 kPa and cools from 350°C to 25°C. Find the absolute value of specific work done.');
 assertEqual(stops.template, 'piston-stops', 'piston stops detection');
 assertEqual(getModelReadiness('A piston-cylinder has a stop located 2 m above the base and the piston is 1 m above the stops. Air is initially at 140 kPa and cools from 350°C to 25°C. Find the absolute value of specific work done.', stops).ready, true, 'piston stops readiness');
